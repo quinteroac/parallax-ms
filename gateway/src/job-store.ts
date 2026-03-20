@@ -1,4 +1,5 @@
 /** In-memory job store for Phase 1. */
+import { emit } from "./sse-emitter";
 
 export type JobStatus = "pending" | "running" | "succeeded" | "failed";
 
@@ -45,6 +46,9 @@ export function updateJob(
   job.updatedAt = new Date().toISOString();
   if (patch.url !== undefined) job.url = patch.url;
   if (patch.error !== undefined) job.error = patch.error;
+  if (patch.status === "succeeded" || patch.status === "failed") {
+    emit(id, { id: job.id, status: patch.status, url: job.url, error: job.error });
+  }
 }
 
 /** Clears all jobs — exposed for test isolation. */

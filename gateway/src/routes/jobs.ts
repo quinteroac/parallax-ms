@@ -1,8 +1,68 @@
 import { Elysia, t } from "elysia";
 import { createJob, getJob } from "../job-store";
 import { enqueueJob } from "../queue";
+import { type JobTerminalEvent, subscribe } from "../sse-emitter";
+
+function sseEvent(event: JobTerminalEvent): string {
+  const data: Record<string, unknown> = { id: event.id, status: event.status };
+  if (event.url !== undefined) data.url = event.url;
+  if (event.error !== undefined) data.error = event.error;
+  return `data: ${JSON.stringify(data)}\n\n`;
+}
 
 export const jobsRoutes = new Elysia({ prefix: "/v1" })
+  .get(
+    "/jobs/:id/events",
+    ({ params }) => {
+      const job = getJob(params.id);
+      if (!job) {
+        return new Response(JSON.stringify({ error: "Job not found" }), {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        });
+      }
+
+      const isTerminal = job.status === "succeeded" || job.status === "failed";
+      let unsubscribe: (() => void) | undefined;
+
+      const stream = new ReadableStream<string>({
+        start(controller) {
+          const send = (evt: JobTerminalEvent) => {
+            controller.enqueue(sseEvent(evt));
+            controller.close();
+          };
+
+          if (isTerminal) {
+            send({
+              id: job.id,
+              status: job.status as "succeeded" | "failed",
+              url: job.url,
+              error: job.error,
+            });
+            return;
+          }
+
+          unsubscribe = subscribe(params.id, (evt) => {
+            unsubscribe?.();
+            unsubscribe = undefined;
+            send(evt);
+          });
+        },
+        cancel() {
+          unsubscribe?.();
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "content-type": "text/event-stream",
+          "cache-control": "no-cache",
+          connection: "keep-alive",
+        },
+      });
+    },
+    { detail: { summary: "Subscribe to job terminal event via SSE" } },
+  )
   .get(
     "/jobs/:id",
     ({ params, set }) => {
