@@ -48,7 +48,7 @@ cd worker && uv sync
 
 ### Run
 
-**Phase 1:** No environment variables are **required** for either process to start. The gateway exposes **`GET /health`** for probes — see [Gateway health (HTTP)](#gateway-health-http) below. Optional variables are documented below and in each package’s `.env.example`.
+**Phase 1:** No environment variables are **required** for either process to start. The gateway and worker each expose **`GET /health`** for probes — see [Gateway health (HTTP)](#gateway-health-http) and [Worker health (HTTP)](#worker-health-http) below. Optional variables are documented below and in each package’s `.env.example`.
 
 **Gateway**
 
@@ -71,6 +71,14 @@ cd worker && uv run uvicorn parallax_worker.main:app --host 0.0.0.0 --port 8000 
 ```
 
 By default the worker listens on **port 8000**. Override `--port` / `--host` as needed, or use the optional `PORT` and `HOST` values documented in [`worker/.env.example`](./worker/.env.example).
+
+#### Worker health (HTTP)
+
+The worker uses the **same liveness contract** as the gateway: when the process is ready to serve, **`GET /health`** returns **200 OK** with JSON `{ "status": "ok" }`. Use it for orchestrator and load-balancer probes independently of the gateway.
+
+| Method | Path | Expected response |
+|--------|------|-------------------|
+| `GET` | `/health` | **200 OK** — JSON body `{ "status": "ok" }` (same shape as [Gateway health (HTTP)](#gateway-health-http)). |
 
 To load variables from `worker/.env` (after copying from the example file) without adding a separate Python env loader, run **dotenvx** from the **worker** directory so it loads **`worker/.env`** (requires `bun install` in `gateway/` so the CLI exists on disk). A shell is used so optional `HOST` / `PORT` from the file apply to uvicorn:
 
