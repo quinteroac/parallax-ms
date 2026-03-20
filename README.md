@@ -48,7 +48,7 @@ cd worker && uv sync
 
 ### Run
 
-**Phase 1:** No environment variables are **required** for either process to start and serve their health/root routes. Optional variables are documented below and in each package’s `.env.example`.
+**Phase 1:** No environment variables are **required** for either process to start. The gateway exposes **`GET /health`** for probes — see [Gateway health (HTTP)](#gateway-health-http) below. Optional variables are documented below and in each package’s `.env.example`.
 
 **Gateway**
 
@@ -57,6 +57,12 @@ cd gateway && bun run dev
 ```
 
 By default the gateway listens on **port 3000**. Override with the optional `PORT` variable documented in [`gateway/.env.example`](./gateway/.env.example).
+
+#### Gateway health (HTTP)
+
+| Method | Path | Expected response |
+|--------|------|-------------------|
+| `GET` | `/health` | **200 OK** — JSON body `{ "status": "ok" }` (minimal response suitable for orchestrator and load-balancer probes). |
 
 **Worker**
 
