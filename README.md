@@ -12,8 +12,10 @@ When building apps that need media generation, inference code is often reimpleme
 |------|----------------|
 | Languages | Python, Node.js |
 | Package / runtime | [Bun](https://bun.sh/), [uv](https://docs.astral.sh/uv/) |
-| Node (gateway) | [Elysia](https://elysiajs.com/) — HTTP server and SSE; [p-queue](https://github.com/sindresorhus/p-queue) — in-memory job queue (concurrency: 1); [Portless](https://portless.dev/) — stable `.localhost` URLs with HTTPS for local dev; [dotenvx](https://dotenvx.com/) — encrypted `.env` and secrets for development |
-| Python (worker) | [FastAPI](https://fastapi.tiangolo.com/) — worker HTTP API; [Uvicorn](https://www.uvicorn.org/) — ASGI server; [Pydantic](https://docs.pydantic.dev/) — request/response validation; [comfy-diffusion](https://github.com/quinteroac/comfy-diffusion) — inference engine and model management |
+| Node (gateway) — `gateway/package.json` | [Elysia](https://elysiajs.com/) — HTTP server and SSE; [p-queue](https://github.com/sindresorhus/p-queue) — in-memory job queue (concurrency: 1); [dotenvx](https://dotenvx.com/) — `@dotenvx/dotenvx` for encrypted `.env` and secrets in development |
+| Optional (gateway, local HTTPS) | [Portless](https://portless.dev/) — stable `.localhost` URLs with HTTPS for local dev; **not** a Phase 1 package dependency (see [ROADMAP.md](./ROADMAP.md)) |
+| Python (worker) — `worker/pyproject.toml` | [FastAPI](https://fastapi.tiangolo.com/) — worker HTTP API; [Uvicorn](https://www.uvicorn.org/) — ASGI server; [Pydantic](https://docs.pydantic.dev/) — request/response validation |
+| Inference (later phases) | [comfy-diffusion](https://github.com/quinteroac/comfy-diffusion) — inference engine and model management; **not** in the Phase 1 worker manifest (tracked in [ROADMAP.md](./ROADMAP.md) Phase 3+) |
 
 ## Repository layout
 
