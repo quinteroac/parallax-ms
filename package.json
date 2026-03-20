@@ -1,0 +1,7 @@
+{
+  "name": "parallax-ms",
+  "private": true,
+  "scripts": {
+    "dev": "portless"
+  }
+}

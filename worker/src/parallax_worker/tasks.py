@@ -8,7 +8,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-INFER_DELAY_SECONDS = 2
+INFER_DELAY_SECONDS = int(os.getenv("INFER_DELAY_SECONDS", "2"))
 
 
 async def run_inference(job_id: str) -> None:

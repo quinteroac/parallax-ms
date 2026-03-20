@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /home/victor/AI/parallax-ms/*.env* /home/victor/AI/parallax-ms/.env*)",
+      "Bash(ls /home/victor/AI/parallax-ms/gateway/.env*)"
+    ]
+  }
+}

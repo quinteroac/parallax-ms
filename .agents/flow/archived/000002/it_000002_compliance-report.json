@@ -1,0 +1,95 @@
+{
+  "iteration": "000002",
+  "generatedAt": "2026-03-19T00:00:00Z",
+  "executiveSummary": "Iteration 000002 is substantially compliant with the PRD. All eight user stories and seven of eight functional requirements are fully implemented. The full job lifecycle (pending → running → succeeded/failed) is operational across the gateway (Bun/Elysia) and stub worker (FastAPI), with p-queue concurrency control, SSE streaming, in-memory job store, automated test suites, and smoke-test documentation all in place. Two minor gaps were identified: (1) FR-7 requires the worker's simulated delay to be configurable via an environment variable, but the implementation hardcodes INFER_DELAY_SECONDS = 2 as a Python constant rather than reading it from the environment; (2) three automated tests (2 gateway, 1 worker) fail due to a case-sensitivity mismatch between README text and test assertions, causing US-008-AC04 to be unsatisfied.",
+  "verificationByFR": [
+    {
+      "frId": "FR-1",
+      "assessment": "comply",
+      "notes": "All four gateway endpoints are present: POST /v1/jobs (jobs.ts:86-112), GET /v1/jobs/:id (jobs.ts:66-85), GET /v1/jobs/:id/events (jobs.ts:14-65), POST /worker/done (worker.ts:5-36)."
+    },
+    {
+      "frId": "FR-2",
+      "assessment": "comply",
+      "notes": "Four states (pending, running, succeeded, failed) are defined in job-store.ts:4. Transitions are one-way and enforced in updateJob (job-store.ts:39-52)."
+    },
+    {
+      "frId": "FR-3",
+      "assessment": "comply",
+      "notes": "In-memory store implemented as Map<string, Job> in job-store.ts:17. No external database dependency."
+    },
+    {
+      "frId": "FR-4",
+      "assessment": "comply",
+      "notes": "PQueue({ concurrency: 1 }) instantiated at module scope in queue.ts:6, shared across the gateway process lifetime."
+    },
+    {
+      "frId": "FR-5",
+      "assessment": "comply",
+      "notes": "Worker reads GATEWAY_CALLBACK_URL from environment with default http://localhost:3000 (tasks.py:19). Documented in worker/.env.example."
+    },
+    {
+      "frId": "FR-6",
+      "assessment": "comply",
+      "notes": "Gateway reads WORKER_BASE_URL from environment with default http://localhost:8000 (queue.ts:9). Documented in gateway/.env.example."
+    },
+    {
+      "frId": "FR-7",
+      "assessment": "partially_comply",
+      "notes": "The stub worker applies a fixed 2 s delay (tasks.py:11) as required. However, the delay is a hardcoded Python constant (INFER_DELAY_SECONDS = 2) rather than read from an environment variable. FR-7 explicitly requires the delay to be configurable via env var."
+    },
+    {
+      "frId": "FR-8",
+      "assessment": "comply",
+      "notes": "SSE stream closes immediately after emitting the terminal event (routes/jobs.ts:32). Client disconnect is handled via the ReadableStream cancel callback (routes/jobs.ts:51-53)."
+    }
+  ],
+  "verificationByUS": [
+    {
+      "usId": "US-001",
+      "assessment": "comply",
+      "notes": "All five ACs satisfied. POST /v1/jobs accepts {type, params}, assigns UUID, stores pending state, returns 201 {jobId}, and returns 400 on bad/missing body. Covered by jobs-create.test.ts (7 tests passing)."
+    },
+    {
+      "usId": "US-002",
+      "assessment": "comply",
+      "notes": "All five ACs satisfied. p-queue concurrency:1 verified; gateway POSTs {id, type, params} to /infer; 202 → running transition; unreachable worker → failed with error message. Covered by jobs-queue.test.ts (6 tests passing)."
+    },
+    {
+      "usId": "US-003",
+      "assessment": "comply",
+      "notes": "All five ACs satisfied. GET /v1/jobs/:id returns {id, status, createdAt, updatedAt}, conditionally includes url (success) and error (failure), and returns 404 for unknown ids. Covered by jobs-get.test.ts (4 tests passing)."
+    },
+    {
+      "usId": "US-004",
+      "assessment": "comply",
+      "notes": "All six ACs satisfied. SSE endpoint opens text/event-stream, emits terminal events, closes stream immediately after, handles late-connecting clients, and returns 404 for unknown ids. Covered by jobs-sse.test.ts (7 tests passing)."
+    },
+    {
+      "usId": "US-005",
+      "assessment": "comply",
+      "notes": "All six ACs satisfied. POST /infer validates via Pydantic InferRequest model, returns 202 immediately, background task delays 2 s then POSTs to gateway, errors are caught and logged without crashing, GET /health returns 200 during background work. Covered by test_us005_infer.py (7 tests passing)."
+    },
+    {
+      "usId": "US-006",
+      "assessment": "comply",
+      "notes": "All five ACs satisfied. POST /worker/done accepts {id, url}, updates job to succeeded with url and refreshed updatedAt, emits SSE event to subscribers, returns 404 for unknown ids. Covered by us006.test.ts (5 tests passing)."
+    },
+    {
+      "usId": "US-007",
+      "assessment": "comply",
+      "notes": "Both ACs satisfied. docs/smoke-test.md provides detailed step-by-step instructions (start gateway, start worker, POST job, open SSE stream, observe completion, GET final status) with expected outputs and lifecycle table."
+    },
+    {
+      "usId": "US-008",
+      "assessment": "partially_comply",
+      "notes": "ACs 01, 02, 03, 05 are satisfied. AC04 ('all tests pass with bun test and uv run pytest') is not satisfied: 3 tests fail (gateway/src/us005.test.ts:23 and worker/tests/test_us005.py:41) because they assert the README contains 'not a phase 1 package dependency' (lowercase) but the README text uses 'Phase 1' (capitalized). This is a test-assertion mismatch, not an implementation defect, but it still causes a CI failure."
+    }
+  ],
+  "minorObservations": [
+    "Worker asset URL is hardcoded as 'http://localhost/assets/<id>.png' (tasks.py:18). For real deployment this placeholder URL format should be configurable or replaced by actual asset storage logic.",
+    "The gateway .env.example mentions GATEWAY_PUBLIC_URL and INTERNAL_CALLBACK_SECRET as 'later phase' variables, but neither is implemented or validated yet. This is acceptable for Phase 2 but should be tracked.",
+    "Test files us005.test.ts (gateway) and test_us005.py (worker) assert exact README text in lowercase; the README uses title case ('Phase 1'). Fix by updating the test assertions to use case-insensitive matching or aligning README capitalization."
+  ],
+  "conclusionsAndRecommendations": "The implementation is of high quality and covers all critical paths end-to-end. Two items require remediation before the iteration can be considered fully compliant: (1) Read INFER_DELAY_SECONDS from an environment variable in tasks.py (e.g. os.getenv('INFER_DELAY_SECONDS', '2')) to satisfy FR-7; (2) Fix the three failing tests by switching to case-insensitive assertion or updating the README to use lowercase 'phase 1' to satisfy US-008-AC04. The hardcoded asset URL placeholder is acceptable for this stub phase but should be noted as technical debt for Phase 3."
+}
