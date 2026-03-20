@@ -48,7 +48,7 @@ cd worker && uv sync
 
 ### Run
 
-No environment variables are **required** for Phase 1 startup. Optional variables (`PORT`, `HOST` for the worker) are listed only in the example files below—copy them if you want non-default ports or bind addresses.
+**Phase 1:** No environment variables are **required** for either process to start and serve their health/root routes. Optional variables are documented below and in each package’s `.env.example`.
 
 **Gateway**
 
@@ -66,12 +66,34 @@ cd worker && uv run uvicorn parallax_worker.main:app --host 0.0.0.0 --port 8000 
 
 By default the worker listens on **port 8000**. Override `--port` / `--host` as needed, or use the optional `PORT` and `HOST` values documented in [`worker/.env.example`](./worker/.env.example).
 
+To load variables from `worker/.env` (after copying from the example file) without adding a separate Python env loader, run **dotenvx** from the **worker** directory so it loads **`worker/.env`** (requires `bun install` in `gateway/` so the CLI exists on disk). A shell is used so optional `HOST` / `PORT` from the file apply to uvicorn:
+
+```bash
+cd worker && ../gateway/node_modules/.bin/dotenvx run -- sh -c 'exec uv run uvicorn parallax_worker.main:app --host "${HOST:-0.0.0.0}" --port "${PORT:-8000}" --reload'
+```
+
+### Secrets and local environment
+
+This repo uses **[dotenvx](https://dotenvx.com/)** via the **`@dotenvx/dotenvx`** package on the **gateway**. It replaces ad-hoc `export` lines in your shell and one-off `.env` files that are easy to commit by mistake. Dotenvx is **compatible with standard `.env` files** (same keys and values as `dotenv`), adds optional **encryption** (`.env.vault` / `.env.keys`) when you need it, and loads variables **before** the gateway reads `PORT` and other settings.
+
+- **Gateway:** `gateway/src/index.ts` calls `config()` from `@dotenvx/dotenvx` at startup and loads **`gateway/.env`** when present (path resolved from the gateway package, so it works even if the working directory is not `gateway/`).
+- **Worker:** For Phase 1, **uvicorn** does not load `.env` by itself. Use the **dotenvx CLI** command above when you want `worker/.env` applied; otherwise rely on defaults and the `--host` / `--port` flags.
+
+### Environment variables (Phase 1 vs later)
+
+| Scope | Required for Phase 1 health / startup | Optional (Phase 1) | Later phases (placeholders in `.env.example` only) |
+|-------|----------------------------------------|--------------------|------------------------------------------------------|
+| gateway | _none_ | `PORT` (default `3000`) | `WORKER_BASE_URL`, `GATEWAY_PUBLIC_URL`, `INTERNAL_CALLBACK_SECRET`, … |
+| worker | _none_ | `HOST`, `PORT` (defaults match README / uvicorn; use `dotenvx` or flags to apply from `.env`) | `GATEWAY_CALLBACK_URL`, `COMFY_OUTPUT_DIR`, `INFERENCE_API_KEY`, … |
+
 ### Environment templates
 
-Example env files (placeholders only, no secrets) live next to each package:
+Example env files (**placeholders only**—no real API keys, tokens, or private URLs) live next to each package:
 
 - [`gateway/.env.example`](./gateway/.env.example)
 - [`worker/.env.example`](./worker/.env.example)
+
+Copy to `.env` locally. Do not commit `.env`, `.env.keys`, or `.env.vault`.
 
 ### Quality checks (development)
 

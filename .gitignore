@@ -12,6 +12,8 @@ build/
 .env
 .env.*
 !.env.example
+.env.keys
+.env.vault
 
 # Tooling / IDE
 .DS_Store

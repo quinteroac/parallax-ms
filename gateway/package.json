@@ -10,6 +10,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@dotenvx/dotenvx": "^1.34.0",
     "elysia": "^1.2.25",
     "p-queue": "^8.1.0"
   },
