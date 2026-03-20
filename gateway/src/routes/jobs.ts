@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import { createJob } from "../job-store";
+import { enqueueJob } from "../queue";
 
 export const jobsRoutes = new Elysia({ prefix: "/v1" }).post(
   "/jobs",
@@ -20,6 +21,7 @@ export const jobsRoutes = new Elysia({ prefix: "/v1" }).post(
     }
     set.status = 201;
     const job = createJob(raw.type, raw.params as Record<string, unknown>);
+    enqueueJob(job);
     return { jobId: job.id };
   },
   {
