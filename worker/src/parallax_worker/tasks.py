@@ -46,7 +46,8 @@ async def run_inference(request: InferRequest) -> None:
     output_path = output_dir / f"{request.id}.png"
     image.save(str(output_path))
 
-    url = f"http://localhost/assets/{request.id}.png"
+    worker_public_url = os.getenv("WORKER_PUBLIC_URL", "http://localhost:8000")
+    url = f"{worker_public_url}/assets/{request.id}.png"
     callback_base = os.getenv("GATEWAY_CALLBACK_URL", "http://localhost:3000")
     callback_url = f"{callback_base}/worker/done"
 
