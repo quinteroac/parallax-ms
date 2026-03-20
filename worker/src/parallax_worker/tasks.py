@@ -17,43 +17,53 @@ logger = logging.getLogger(__name__)
 
 
 async def run_inference(request: InferRequest) -> None:
-    """Run txt2img inference and POST the result to the gateway callback."""
-    checkpoint = get_checkpoint()
-    model = checkpoint.model
-    clip = checkpoint.clip
-    vae = checkpoint.vae
-
-    # AC01 / AC02 — full pipeline using validated request parameters
-    positive = encode_prompt(clip, request.prompt)
-    negative = encode_prompt(clip, request.negative_prompt)
-    latent = empty_latent_image(request.width, request.height)
-    denoised = sample(
-        model,
-        positive,
-        negative,
-        latent,
-        request.steps,
-        request.cfg,
-        request.sampler_name,
-        request.scheduler,
-        request.seed,
-    )
-    image = vae_decode(vae, denoised)
-
-    # AC03 — save artifact to disk
-    output_dir = Path(os.getenv("OUTPUT_DIR", "/tmp/parallax-output"))
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"{request.id}.png"
-    image.save(str(output_path))
-
-    worker_public_url = os.getenv("WORKER_PUBLIC_URL", "http://localhost:8000")
-    url = f"{worker_public_url}/assets/{request.id}.png"
+    """Run txt2img inference and POST the result or error to the gateway callback."""
     callback_base = os.getenv("GATEWAY_CALLBACK_URL", "http://localhost:3000")
     callback_url = f"{callback_base}/worker/done"
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(callback_url, json={"id": request.id, "url": url})
-            response.raise_for_status()
+        checkpoint = get_checkpoint()
+        model = checkpoint.model
+        clip = checkpoint.clip
+        vae = checkpoint.vae
+
+        # Full pipeline using validated request parameters
+        positive = encode_prompt(clip, request.prompt)
+        negative = encode_prompt(clip, request.negative_prompt)
+        latent = empty_latent_image(request.width, request.height)
+        denoised = sample(
+            model,
+            positive,
+            negative,
+            latent,
+            request.steps,
+            request.cfg,
+            request.sampler_name,
+            request.scheduler,
+            request.seed,
+        )
+        image = vae_decode(vae, denoised)
+
+        # Save artifact to disk
+        output_dir = Path(os.getenv("OUTPUT_DIR", "/tmp/parallax-output"))
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"{request.id}.png"
+        image.save(str(output_path))
+
+        worker_public_url = os.getenv("WORKER_PUBLIC_URL", "http://localhost:8000")
+        url = f"{worker_public_url}/assets/{request.id}.png"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(callback_url, json={"id": request.id, "url": url})
+                response.raise_for_status()
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Failed to POST to gateway callback %s: %s", callback_url, exc)
+
     except Exception as exc:  # noqa: BLE001
-        logger.error("Failed to POST to gateway callback %s: %s", callback_url, exc)
+        logger.error("Inference failed for job %s: %s", request.id, exc)
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                await client.post(callback_url, json={"id": request.id, "error": str(exc)})
+        except Exception as cb_exc:  # noqa: BLE001
+            logger.error("Failed to POST error callback to %s: %s", callback_url, cb_exc)

@@ -15,9 +15,11 @@ export const workerRoutes = new Elysia().post(
       set.status = 400;
       return { error: "`id` is required and must be a non-empty string" };
     }
-    if (typeof raw.url !== "string" || raw.url.length === 0) {
+    const hasUrl = typeof raw.url === "string" && raw.url.length > 0;
+    const hasError = typeof raw.error === "string" && raw.error.length > 0;
+    if (!hasUrl && !hasError) {
       set.status = 400;
-      return { error: "`url` is required and must be a non-empty string" };
+      return { error: "Either `url` (success) or `error` (failure) must be a non-empty string" };
     }
 
     const job = getJob(raw.id);
@@ -26,7 +28,11 @@ export const workerRoutes = new Elysia().post(
       return { error: "Job not found" };
     }
 
-    updateJob(raw.id, { status: "succeeded", url: raw.url });
+    if (hasError) {
+      updateJob(raw.id, { status: "failed", error: raw.error as string });
+    } else {
+      updateJob(raw.id, { status: "succeeded", url: raw.url as string });
+    }
     return { ok: true };
   },
   {
