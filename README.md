@@ -34,6 +34,8 @@ This repository is a **monorepo** with two packages:
 - [uv](https://docs.astral.sh/uv/) for the Python worker
 - Python **3.11+** (managed by uv when you sync the worker)
 
+> **Note:** The `dotenvx` CLI used to load `worker/.env` is installed as part of the gateway (`gateway/node_modules/.bin/dotenvx`). Install the gateway first (`cd gateway && bun install`) before running the dotenvx command for the worker.
+
 ### Install
 
 **Gateway (Bun)**

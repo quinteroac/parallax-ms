@@ -22,6 +22,12 @@
 ## Code Standards
 
 - **Style patterns:** Prefer small, explicit modules; async HTTP handlers where frameworks expect it; validate external input at boundaries (Elysia schemas, Pydantic models). Environment variables loaded via dotenvx or the documented equivalent — never commit secrets.
+- **SOLID principles:** All code in both the gateway and worker MUST follow SOLID:
+  - **S — Single Responsibility:** Each module, class, or function has one reason to change (e.g. route handler, queue manager, and job store are separate concerns).
+  - **O — Open/Closed:** Extend behavior via new modules or strategy objects; avoid modifying stable, tested code for new features.
+  - **L — Liskov Substitution:** Subtypes and interface implementations must be substitutable for their base types without altering program correctness.
+  - **I — Interface Segregation:** Prefer narrow, focused interfaces/types over wide, multi-purpose ones; Pydantic models and Elysia schemas should cover only what each endpoint needs.
+  - **D — Dependency Inversion:** High-level modules (route handlers, job logic) depend on abstractions (interfaces/protocols), not on concrete implementations (specific HTTP clients, model loaders).
 - **Error handling:** Return appropriate HTTP status codes; surface worker failures to job state in later phases; for Phase 1, health endpoints return clear success semantics for probes.
 - **Module organisation:** Monorepo or clearly separated packages: one **gateway** tree (Bun + Elysia) and one **worker** tree (uv + FastAPI), each independently startable with documented commands.
 - **Forbidden patterns:** Do not contradict the README/ROADMAP stack without a documented revision; do not add real secrets to example env files; do not introduce undeclared env vars in run instructions beyond templates.
