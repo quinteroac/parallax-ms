@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "comfy-diffusion-reference": {
+      "source": "quinteroac/comfy-diffusion",
+      "sourceType": "github",
+      "computedHash": "db7118c8e5f9ba7b843ae0a445942949ac56471bd1a25755d4ea9ac48a5e5280"
+    }
+  }
+}

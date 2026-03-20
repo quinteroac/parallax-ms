@@ -1,0 +1,33 @@
+{
+  "current_iteration": "000001",
+  "current_phase": "define",
+  "phases": {
+    "define": {
+      "requirement_definition": { "status": "pending", "file": null },
+      "prd_generation": { "status": "pending", "file": null }
+    },
+    "prototype": {
+      "prototype_creation": { "status": "pending", "file": null },
+      "prototype_audit": { "status": "pending", "file": null },
+      "prototype_refactor": { "status": "pending", "file": null },
+      "prototype_approval": { "status": "pending", "file": null },
+      "project_context": { "status": "pending", "file": null },
+      "test_plan": { "status": "pending", "file": null },
+      "tp_generation": { "status": "pending", "file": null },
+      "prototype_build": { "status": "pending", "file": null },
+      "test_execution": { "status": "pending", "file": null },
+      "prototype_approved": false
+    },
+    "refactor": {
+      "evaluation_report": { "status": "pending", "file": null },
+      "refactor_plan": { "status": "pending", "file": null },
+      "refactor_execution": { "status": "pending", "file": null },
+      "changelog": { "status": "pending", "file": null }
+    }
+  },
+  "deprecated_notes": [
+    "prototype.project_context, prototype.test_plan, prototype.tp_generation, prototype.prototype_build, prototype.test_execution, prototype.prototype_approved, and phases.refactor are deprecated and retained only for backward compatibility."
+  ],
+  "last_updated": "2026-02-18T12:00:00Z",
+  "history": []
+}

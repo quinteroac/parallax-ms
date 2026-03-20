@@ -1,0 +1,42 @@
+{
+  "current_iteration": "000001",
+  "current_phase": "prototype",
+  "phases": {
+    "define": {
+      "requirement_definition": {
+        "status": "approved",
+        "file": "it_000001_product-requirement-document.md"
+      },
+      "prd_generation": {
+        "status": "completed",
+        "file": "it_000001_PRD.json"
+      }
+    },
+    "prototype": {
+      "prototype_creation": {
+        "status": "pending",
+        "file": null
+      },
+      "prototype_audit": {
+        "status": "pending",
+        "file": null
+      },
+      "prototype_refactor": {
+        "status": "pending",
+        "file": null
+      },
+      "prototype_approval": {
+        "status": "pending",
+        "file": null
+      },
+      "project_context": {
+        "status": "created",
+        "file": ".agents/PROJECT_CONTEXT.md"
+      }
+    },
+    "refactor": {}
+  },
+  "last_updated": "2026-03-20T00:09:52.948Z",
+  "updated_by": "nvst:approve-project-context",
+  "history": []
+}

@@ -1,0 +1,151 @@
+{
+  "goals": [
+    "Deliver a **monorepo or clearly separated packages** with **Bun** for the gateway and **uv** for the Python worker, with **documented install and run** commands.",
+    "Provide **local configuration** using **dotenvx** or an **equivalent documented** approach, plus **example environment templates** that contain **no real secrets**.",
+    "Ensure the **gateway** and **worker** processes start **independently** and each expose at least one **HTTP health or readiness** route with **documented** paths and success semantics.",
+    "Align **declared dependencies** in manifests with the **stack table** in [README.md](../../README.md) (e.g. Elysia, FastAPI, Uvicorn, and other listed choices as applicable)."
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Monorepo layout and documented install/run",
+      "description": "As a developer setting up Parallax for future end-user traffic, I want a clear repository layout and documented commands to install and start both the gateway and worker so that the stack can be reproduced consistently.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-001-AC01",
+          "text": "Repository uses a **monorepo** or **documented multi-package** layout separating the Node gateway and Python worker."
+        },
+        {
+          "id": "US-001-AC02",
+          "text": "**Install** steps for the gateway use **Bun**; **install** steps for the worker use **uv** (or documented equivalent); both are written in project docs (e.g. README)."
+        },
+        {
+          "id": "US-001-AC03",
+          "text": "**Run** commands to start the gateway and worker are documented and do not rely on undocumented environment variables beyond what is provided by templates (see US-002)."
+        },
+        {
+          "id": "US-001-AC04",
+          "text": "Typecheck / lint passes for added or modified code where tooling exists."
+        }
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Local secrets and example environment templates",
+      "description": "As a developer, I want documented secret handling and non-secret example env files so that local configuration is repeatable without committing credentials.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-002-AC01",
+          "text": "**dotenvx** is used **or** an **equivalent** is chosen, **documented** with rationale (what it replaces and how to use it locally)."
+        },
+        {
+          "id": "US-002-AC02",
+          "text": "**Example** env template(s) exist (e.g. `.env.example` or project-documented names) and contain **placeholders only**—no real API keys, tokens, or private URLs."
+        },
+        {
+          "id": "US-002-AC03",
+          "text": "Documentation states **which variables** are required for Phase 1 startup (gateway + worker health) vs optional for later phases."
+        },
+        {
+          "id": "US-002-AC04",
+          "text": "Typecheck / lint passes for added or modified code where tooling exists."
+        }
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Gateway HTTP health or readiness",
+      "description": "As a developer, I want the gateway to expose a documented HTTP health or readiness route so that orchestrators and humans can verify the process is live.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-003-AC01",
+          "text": "Gateway process starts successfully using documented commands and required env from templates."
+        },
+        {
+          "id": "US-003-AC02",
+          "text": "At least one **HTTP** route (path and method) is exposed for **health** or **readiness**; response documents **success** status code and a minimal body or headers suitable for probes."
+        },
+        {
+          "id": "US-003-AC03",
+          "text": "Route behavior is **documented** in README or equivalent (URL path, expected status)."
+        },
+        {
+          "id": "US-003-AC04",
+          "text": "Typecheck / lint passes for added or modified code where tooling exists."
+        }
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Worker HTTP health (aligned with gateway)",
+      "description": "As a developer, I want the Python worker to start independently and expose a health route so that deployment and debugging do not depend on the gateway being up.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-004-AC01",
+          "text": "Worker process starts successfully using documented **uv**-based (or documented equivalent) commands."
+        },
+        {
+          "id": "US-004-AC02",
+          "text": "At least one **HTTP** health (or readiness) route exists; **documented** path, method, and success criteria."
+        },
+        {
+          "id": "US-004-AC03",
+          "text": "Semantics are **consistent with** the gateway’s health story (documented: e.g. both return HTTP success when process is ready, or explicit distinction if they differ)."
+        },
+        {
+          "id": "US-004-AC04",
+          "text": "Typecheck / lint passes for added or modified Python and config where tooling exists."
+        }
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "README stack table reflected in dependencies",
+      "description": "As a maintainer, I want package manifests to match the README stack table so that declared versions and libraries are not misleading.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-005-AC01",
+          "text": "Gateway manifest(s) (e.g. `package.json`) include **Elysia** and other Node stack items **as listed in README** for the gateway, or README is **updated** to match intentional deviations."
+        },
+        {
+          "id": "US-005-AC02",
+          "text": "Worker manifest / lock (e.g. `pyproject.toml` / lockfile) includes **FastAPI**, **Uvicorn**, and other Python stack items **as listed in README**, or README is **updated** to match intentional deviations."
+        },
+        {
+          "id": "US-005-AC03",
+          "text": "**No** README row for Phase 1 scope silently contradicts the chosen dependencies (either implement or adjust docs)."
+        },
+        {
+          "id": "US-005-AC04",
+          "text": "Typecheck / lint passes for added or modified code where tooling exists."
+        }
+      ]
+    }
+  ],
+  "functionalRequirements": [
+    {
+      "id": "FR-1",
+      "description": "** The repository SHALL provide a Bun-driven gateway package and a uv-driven Python worker package (or equivalent documented layout)."
+    },
+    {
+      "id": "FR-2",
+      "description": "** Documentation SHALL describe how to install dependencies and start each process without undisclosed steps."
+    },
+    {
+      "id": "FR-3",
+      "description": "** Local configuration SHALL use dotenvx or a documented equivalent; example env files SHALL not contain real secrets."
+    },
+    {
+      "id": "FR-4",
+      "description": "** The gateway SHALL expose at least one HTTP health or readiness endpoint when running; behavior SHALL be documented."
+    },
+    {
+      "id": "FR-5",
+      "description": "** The worker SHALL expose at least one HTTP health (or readiness) endpoint when running; behavior SHALL be documented and aligned with the gateway’s documented probe story."
+    },
+    {
+      "id": "FR-6",
+      "description": "** Declared dependencies in manifests SHALL be consistent with the stack described in README for Phase 1 scope, or README SHALL be updated to reflect the actual choices."
+    }
+  ]
+}
