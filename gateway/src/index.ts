@@ -1,6 +1,7 @@
 import { config } from "@dotenvx/dotenvx";
 import { Elysia } from "elysia";
 import { join } from "node:path";
+import { jobsRoutes } from "./routes/jobs";
 
 config({ path: join(import.meta.dir, "../.env") });
 
@@ -9,7 +10,8 @@ export const app = new Elysia()
   .get("/health", () => ({ status: "ok" as const }), {
     detail: { summary: "Liveness / readiness probe" },
   })
-  .get("/", () => ({ ok: true, service: "parallax-gateway" }));
+  .get("/", () => ({ ok: true, service: "parallax-gateway" }))
+  .use(jobsRoutes);
 
 const parsed = Number.parseInt(process.env.PORT ?? "3000", 10);
 const port = Number.isFinite(parsed) && parsed > 0 ? parsed : 3000;
