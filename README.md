@@ -15,6 +15,68 @@ When building apps that need media generation, inference code is often reimpleme
 | Node (gateway) | [Elysia](https://elysiajs.com/) — HTTP server and SSE; [p-queue](https://github.com/sindresorhus/p-queue) — in-memory job queue (concurrency: 1); [Portless](https://portless.dev/) — stable `.localhost` URLs with HTTPS for local dev; [dotenvx](https://dotenvx.com/) — encrypted `.env` and secrets for development |
 | Python (worker) | [FastAPI](https://fastapi.tiangolo.com/) — worker HTTP API; [Uvicorn](https://www.uvicorn.org/) — ASGI server; [Pydantic](https://docs.pydantic.dev/) — request/response validation; [comfy-diffusion](https://github.com/quinteroac/comfy-diffusion) — inference engine and model management |
 
+## Repository layout
+
+This repository is a **monorepo** with two packages:
+
+| Package | Path | Role |
+|---------|------|------|
+| **Gateway** | [`gateway/`](./gateway/) | Bun + Elysia HTTP API (jobs, SSE, coordination) |
+| **Worker** | [`worker/`](./worker/) | uv-managed Python FastAPI inference service |
+
+## Getting started
+
+### Prerequisites
+
+- [Bun](https://bun.sh/) for the gateway
+- [uv](https://docs.astral.sh/uv/) for the Python worker
+- Python **3.11+** (managed by uv when you sync the worker)
+
+### Install
+
+**Gateway (Bun)**
+
+```bash
+cd gateway && bun install
+```
+
+**Worker (uv)**
+
+```bash
+cd worker && uv sync
+```
+
+### Run
+
+No environment variables are **required** for Phase 1 startup. Optional variables (`PORT`, `HOST` for the worker) are listed only in the example files below—copy them if you want non-default ports or bind addresses.
+
+**Gateway**
+
+```bash
+cd gateway && bun run dev
+```
+
+By default the gateway listens on **port 3000**. Override with the optional `PORT` variable documented in [`gateway/.env.example`](./gateway/.env.example).
+
+**Worker**
+
+```bash
+cd worker && uv run uvicorn parallax_worker.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+By default the worker listens on **port 8000**. Override `--port` / `--host` as needed, or use the optional `PORT` and `HOST` values documented in [`worker/.env.example`](./worker/.env.example).
+
+### Environment templates
+
+Example env files (placeholders only, no secrets) live next to each package:
+
+- [`gateway/.env.example`](./gateway/.env.example)
+- [`worker/.env.example`](./worker/.env.example)
+
+### Quality checks (development)
+
+From `gateway/`: `bun run typecheck` and `bun run lint`. From `worker/`: `uv run ruff check src tests`.
+
 ## Architecture
 
 1. **Gateway (Elysia)** accepts a request, assigns a `jobId`, stores state in an in-memory map, and returns `{ jobId: "…" }` immediately. It does not wait for inference.

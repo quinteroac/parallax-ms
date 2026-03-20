@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Tooling / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+.python-version
+
+# Logs
+*.log
