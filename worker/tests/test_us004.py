@@ -2,6 +2,7 @@
 
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -21,8 +22,9 @@ def test_ac01_readme_documents_uv_sync_and_uvicorn_start():
 
 
 def test_ac02_get_health_returns_200_with_json_body():
-    client = TestClient(app)
-    res = client.get("/health")
+    with patch("parallax_worker.main.is_ready", return_value=True):
+        client = TestClient(app)
+        res = client.get("/health")
     assert res.status_code == 200
     assert res.json() == {"status": "ok"}
 
@@ -37,8 +39,9 @@ def test_ac03_semantics_match_gateway_and_readme_documents_alignment():
     gateway_index = (REPO_ROOT / "gateway" / "src" / "index.ts").read_text(encoding="utf-8")
     assert "status" in gateway_index and '"ok"' in gateway_index
 
-    client = TestClient(app)
-    assert client.get("/health").json() == {"status": "ok"}
+    with patch("parallax_worker.main.is_ready", return_value=True):
+        client = TestClient(app)
+        assert client.get("/health").json() == {"status": "ok"}
 
 
 def test_ac04_ruff_check_passes_for_src_and_tests():

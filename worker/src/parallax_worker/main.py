@@ -1,18 +1,31 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import BackgroundTasks, FastAPI
+from fastapi.responses import JSONResponse
 
 from parallax_worker.models import InferRequest
+from parallax_worker.startup import bootstrap, is_ready
 from parallax_worker.tasks import run_inference
 
-app = FastAPI(title="Parallax Worker", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    bootstrap()
+    yield
+
+
+app = FastAPI(title="Parallax Worker", version="0.1.0", lifespan=lifespan)
 
 
 @app.get(
     "/health",
-    response_model=dict[str, str],
     summary="Liveness / readiness probe",
 )
 async def health():
-    """Return the same JSON liveness payload as the gateway ``GET /health`` handler."""
+    """Return 200 only after the runtime and model are loaded successfully."""
+    if not is_ready():
+        return JSONResponse(status_code=503, content={"status": "not ready"})
     return {"status": "ok"}
 
 

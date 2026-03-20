@@ -87,13 +87,14 @@ async def test_ac04_unreachable_gateway_logs_error_no_crash():
 
 # AC05 — Health endpoint still returns 200 while a background task is running
 def test_ac05_health_returns_200_with_background_task_running():
-    # Start an infer request (triggers background task)
-    client.post(
-        "/infer",
-        json={"id": "job-health", "prompt": "sunset"},
-    )
-    # Health must still respond immediately
-    response = client.get("/health")
+    with patch("parallax_worker.main.is_ready", return_value=True):
+        # Start an infer request (triggers background task)
+        client.post(
+            "/infer",
+            json={"id": "job-health", "prompt": "sunset"},
+        )
+        # Health must still respond immediately
+        response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
