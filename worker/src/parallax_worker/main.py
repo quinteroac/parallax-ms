@@ -37,5 +37,5 @@ async def root():
 @app.post("/infer", status_code=202)
 async def infer(request: InferRequest, background_tasks: BackgroundTasks):
     """Accept an inference request, queue a background task, and return 202 immediately."""
-    background_tasks.add_task(run_inference, request.id)
+    background_tasks.add_task(run_inference, request)
     return {"message": "accepted"}

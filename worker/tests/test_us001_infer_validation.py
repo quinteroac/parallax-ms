@@ -2,6 +2,7 @@
 
 import subprocess
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -72,26 +73,28 @@ def test_ac02_empty_body_returns_422():
 
 # AC03 — Valid request returns 202 Accepted
 def test_ac03_valid_request_returns_202():
-    response = client.post("/infer", json={"id": "job-ok", "prompt": "a mountain"})
+    with patch("parallax_worker.main.run_inference", new=AsyncMock()):
+        response = client.post("/infer", json={"id": "job-ok", "prompt": "a mountain"})
     assert response.status_code == 202
 
 
 def test_ac03_valid_request_with_all_fields_returns_202():
-    response = client.post(
-        "/infer",
-        json={
-            "id": "job-full",
-            "prompt": "a forest",
-            "negative_prompt": "blurry",
-            "width": 768,
-            "height": 512,
-            "steps": 25,
-            "cfg": 6.5,
-            "seed": 99,
-            "sampler_name": "dpm",
-            "scheduler": "karras",
-        },
-    )
+    with patch("parallax_worker.main.run_inference", new=AsyncMock()):
+        response = client.post(
+            "/infer",
+            json={
+                "id": "job-full",
+                "prompt": "a forest",
+                "negative_prompt": "blurry",
+                "width": 768,
+                "height": 512,
+                "steps": 25,
+                "cfg": 6.5,
+                "seed": 99,
+                "sampler_name": "dpm",
+                "scheduler": "karras",
+            },
+        )
     assert response.status_code == 202
 
 
