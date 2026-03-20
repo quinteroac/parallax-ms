@@ -18,22 +18,23 @@ client = TestClient(app)
 
 # AC01 — Pydantic model validates body fields
 def test_ac01_infer_request_model_validates_fields():
-    req = InferRequest(id="job-1", type="txt2img", params={"prompt": "a cat"})
+    req = InferRequest(id="job-1", prompt="a cat")
     assert req.id == "job-1"
-    assert req.type == "txt2img"
-    assert req.params == {"prompt": "a cat"}
+    assert req.prompt == "a cat"
+    assert req.negative_prompt == ""
+    assert req.width == 512
 
 
 def test_ac01_infer_request_rejects_missing_fields():
     with pytest.raises(Exception):
-        InferRequest(id="job-1")  # type and params missing
+        InferRequest(id="job-1")  # prompt missing
 
 
 # AC02 — POST /infer returns 202 with {"message": "accepted"}
 def test_ac02_post_infer_returns_202_accepted():
     response = client.post(
         "/infer",
-        json={"id": "job-abc", "type": "txt2img", "params": {"prompt": "sunset"}},
+        json={"id": "job-abc", "prompt": "sunset"},
     )
     assert response.status_code == 202
     assert response.json() == {"message": "accepted"}
@@ -89,7 +90,7 @@ def test_ac05_health_returns_200_with_background_task_running():
     # Start an infer request (triggers background task)
     client.post(
         "/infer",
-        json={"id": "job-health", "type": "txt2img", "params": {}},
+        json={"id": "job-health", "prompt": "sunset"},
     )
     # Health must still respond immediately
     response = client.get("/health")
