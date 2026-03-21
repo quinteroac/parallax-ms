@@ -1,0 +1,28 @@
+{
+  "models": [
+    {
+      "id": "stable-diffusion-xl-base",
+      "name": "Stable Diffusion XL Base",
+      "type": "images",
+      "modalities": ["text-to-image"],
+      "description": "High-resolution text-to-image generation using SDXL architecture.",
+      "components": ["unet", "vae", "clip_l", "clip_g"]
+    },
+    {
+      "id": "stable-diffusion-v1-5",
+      "name": "Stable Diffusion v1.5",
+      "type": "images",
+      "modalities": ["text-to-image", "image-to-image"],
+      "description": "General-purpose latent diffusion model for image generation.",
+      "components": ["unet", "vae", "clip"]
+    },
+    {
+      "id": "real-esrgan-x4plus",
+      "name": "Real-ESRGAN x4 Plus",
+      "type": "upscalers",
+      "modalities": ["image-to-image"],
+      "description": "Practical image restoration with 4x upscaling using enhanced ESRGAN.",
+      "components": ["esrgan"]
+    }
+  ]
+}
