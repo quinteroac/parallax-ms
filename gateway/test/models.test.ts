@@ -217,11 +217,11 @@ describe("US-003 GET /v1/models/:id", () => {
   // AC01: works for a model that exists in the real config
   test("AC01: returns a real model from the default config", async () => {
     const res = await app.handle(
-      new Request("http://localhost/v1/models/stable-diffusion-xl-base"),
+      new Request("http://localhost/v1/models/wai-illustrious-sdxl-v160"),
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as ModelEntry;
-    expect(body.id).toBe("stable-diffusion-xl-base");
+    expect(body.id).toBe("wai-illustrious-sdxl-v160");
     expect(typeof body.components).toBe("object");
     expect(Object.keys(body.components as Record<string, unknown>).length).toBeGreaterThan(0);
   });
@@ -248,5 +248,46 @@ describe("US-003 GET /v1/models/:id", () => {
     expect(res.status).toBe(404);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.error).toBe("Model not found");
+  });
+});
+
+describe("US-007-001 Upscaler model in config", () => {
+  // AC01: models.config.json contains at least one upscaler entry
+  test("AC01: GET /v1/models returns at least one entry under upscalers", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, ModelEntry[]>;
+    expect(Array.isArray(body.upscalers)).toBe(true);
+    expect(body.upscalers.length).toBeGreaterThan(0);
+  });
+
+  test("AC01: upscaler entry has type upscalers and modalities including upscale", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, ModelEntry[]>;
+    const upscaler = body.upscalers[0];
+    expect(upscaler.type).toBe("upscalers");
+    expect(upscaler.modalities).toContain("upscale");
+  });
+
+  // AC02: GET /v1/models groups the upscaler under the upscalers key
+  test("AC02: GET /v1/models?type=upscalers returns the upscaler entry", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models?type=upscalers"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, ModelEntry[]>;
+    expect(Array.isArray(body.upscalers)).toBe(true);
+    expect(body.upscalers.length).toBeGreaterThan(0);
+    expect("images" in body).toBe(false);
+  });
+
+  // AC03: GET /v1/models/:id returns the upscaler entry correctly
+  test("AC03: GET /v1/models/4x-ultrasharp returns the upscaler model", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models/4x-ultrasharp"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ModelEntry;
+    expect(body.id).toBe("4x-ultrasharp");
+    expect(body.type).toBe("upscalers");
+    expect(body.modalities).toContain("upscale");
+    expect(typeof body.components).toBe("object");
   });
 });

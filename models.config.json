@@ -73,6 +73,17 @@
         "diffusion_model": "acestep_v1.5_base.safetensors",
         "vae": "ace_1.5_vae.safetensors"
       }
+    },
+    {
+      "id": "4x-ultrasharp",
+      "name": "4x-UltraSharp",
+      "type": "upscalers",
+      "modalities": ["upscale"],
+      "description": "4x ESRGAN upscaler optimized for photorealistic detail and texture enhancement.",
+      "architecture": "bundled-checkpoint",
+      "components": {
+        "checkpoint": "4x-UltraSharp.pth"
+      }
     }
   ]
 }
