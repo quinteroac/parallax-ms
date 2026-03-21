@@ -1,4 +1,5 @@
 import { config } from "@dotenvx/dotenvx";
+import { swagger } from "@elysiajs/swagger";
 import { Elysia } from "elysia";
 import { join } from "node:path";
 import { loadModels } from "./model-store";
@@ -12,6 +13,18 @@ config({ path: join(import.meta.dir, "../.env") });
 
 /** HTTP API (exported for tests and programmatic use). */
 export const app = new Elysia()
+  .use(
+    swagger({
+      path: "/swagger",
+      documentation: {
+        info: {
+          title: "Parallax Gateway API",
+          version: "1.0.0",
+          description: "Unified API for media generation backed by comfy-diffusion.",
+        },
+      },
+    }),
+  )
   .get("/health", () => ({ status: "ok" as const }), {
     detail: { summary: "Liveness / readiness probe" },
   })
