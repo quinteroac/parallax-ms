@@ -7,8 +7,10 @@ import os
 from pathlib import Path
 
 import httpx
+import numpy as np
 from comfy_diffusion import vae_decode
 from comfy_diffusion.conditioning import encode_prompt
+from comfy_diffusion.image import image_to_tensor, image_upscale_with_model
 from comfy_diffusion.latent import empty_latent_image
 from comfy_diffusion.models import ModelManager
 from comfy_diffusion.sampling import sample
@@ -98,49 +100,63 @@ def _decode_source_image(source_image: str) -> PILImage.Image:
 
 
 async def run_inference(request: InferRequest) -> None:
-    """Run txt2img or img2img inference and POST the result or error to the gateway callback."""
+    """Run txt2img, img2img, or upscale inference and POST result or error to gateway callback."""
     callback_base = os.getenv("GATEWAY_CALLBACK_URL", "http://localhost:3000")
     callback_url = f"{callback_base}/worker/done"
 
     try:
         models_dir = os.environ.get("MODELS_DIR", "/mnt/models/comfyui")
         manager = ModelManager(models_dir)
-        model, clip, vae = _load_model_components(
-            manager, request.architecture, request.components
-        )
 
-        positive = encode_prompt(clip, request.prompt)
-        negative = encode_prompt(clip, request.negative_prompt)
-
-        if request.modality == "img2img":
+        if request.modality == "upscale":
             if request.source_image is None:
                 raise ValueError(
-                    "source_image is required for img2img modality but was not provided."
+                    "source_image is required for upscale modality but was not provided."
                 )
             pil_image = _decode_source_image(request.source_image)
-            latent = vae_encode(vae, pil_image)
-            denoise = request.denoise_strength
-        elif request.modality == "txt2img":
-            latent = empty_latent_image(request.width, request.height)
-            denoise = 1.0
+            upscale_model = manager.load_upscale_model(request.components.get("checkpoint", ""))
+            image_tensor = image_to_tensor(pil_image)
+            output_tensor = image_upscale_with_model(upscale_model, image_tensor)
+            arr = (output_tensor[0].cpu().float().numpy().clip(0, 1) * 255).astype(np.uint8)
+            image = PILImage.fromarray(arr)
         else:
-            raise ValueError(
-                f"Unsupported modality '{request.modality}'. Supported: txt2img, img2img."
+            model, clip, vae = _load_model_components(
+                manager, request.architecture, request.components
             )
 
-        denoised = sample(
-            model,
-            positive,
-            negative,
-            latent,
-            request.steps,
-            request.cfg,
-            request.sampler_name,
-            request.scheduler,
-            request.seed,
-            denoise=denoise,
-        )
-        image = vae_decode(vae, denoised)
+            positive = encode_prompt(clip, request.prompt)
+            negative = encode_prompt(clip, request.negative_prompt)
+
+            if request.modality == "img2img":
+                if request.source_image is None:
+                    raise ValueError(
+                        "source_image is required for img2img modality but was not provided."
+                    )
+                pil_image = _decode_source_image(request.source_image)
+                latent = vae_encode(vae, pil_image)
+                denoise = request.denoise_strength
+            elif request.modality == "txt2img":
+                latent = empty_latent_image(request.width, request.height)
+                denoise = 1.0
+            else:
+                raise ValueError(
+                    f"Unsupported modality '{request.modality}'. "
+                    "Supported: txt2img, img2img, upscale."
+                )
+
+            denoised = sample(
+                model,
+                positive,
+                negative,
+                latent,
+                request.steps,
+                request.cfg,
+                request.sampler_name,
+                request.scheduler,
+                request.seed,
+                denoise=denoise,
+            )
+            image = vae_decode(vae, denoised)
 
         output_dir = Path(os.getenv("OUTPUT_DIR", "./outputs"))
         output_dir.mkdir(parents=True, exist_ok=True)
