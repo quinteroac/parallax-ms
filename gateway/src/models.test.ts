@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Elysia } from "elysia";
 import { app } from "./index";
+import type { ModelEntry } from "./model-store";
 import { createModelsRoutes } from "./routes/models";
 
 describe("US-001 GET /v1/models", () => {
@@ -82,5 +83,92 @@ describe("US-001 GET /v1/models", () => {
     expect(res.status).toBe(503);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.error).toBe("Model configuration unavailable");
+  });
+});
+
+const imageModel: ModelEntry = {
+  id: "sdxl",
+  name: "SDXL",
+  type: "images",
+  modalities: ["text-to-image"],
+  description: "test",
+  components: ["unet"],
+};
+
+describe("US-002 GET /v1/models?type=", () => {
+  // AC01: returns 200 with { images: [...] } containing only image models
+  test("AC01: ?type=images returns 200 with { images: [...] } and no other keys", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models?type=images"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(Array.isArray(body.images)).toBe(true);
+    expect("video" in body).toBe(false);
+    expect("editing" in body).toBe(false);
+    expect("audio" in body).toBe(false);
+    expect("upscalers" in body).toBe(false);
+  });
+
+  // AC01: models in the filtered response belong to the requested type
+  test("AC01: models returned under the type key all have type === images", async () => {
+    const routes = createModelsRoutes(() => ({
+      images: [imageModel],
+      video: [],
+      editing: [],
+      audio: [],
+      upscalers: [],
+    }));
+    const testApp = new Elysia().use(routes);
+    const res = await testApp.handle(new Request("http://localhost/v1/models?type=images"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { images: ModelEntry[] };
+    expect(body.images).toHaveLength(1);
+    expect(body.images[0].id).toBe("sdxl");
+  });
+
+  // AC02: valid type values are case-insensitive
+  test("AC02: type parameter is case-insensitive (IMAGES → images)", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models?type=IMAGES"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(Array.isArray(body.images)).toBe(true);
+  });
+
+  test("AC02: mixed case type (Video) is accepted", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models?type=Video"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(Array.isArray(body.video)).toBe(true);
+  });
+
+  // AC03: unknown type returns 400 with the prescribed error message
+  test("AC03: unknown type value returns 400", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models?type=unknown"));
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.error).toBe(
+      "Invalid type. Valid values: images, video, editing, audio, upscalers",
+    );
+  });
+
+  test("AC03: empty string type returns 400", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models?type="));
+    expect(res.status).toBe(400);
+  });
+
+  // AC04: valid type with no configured models returns { <type>: [] }
+  test("AC04: valid type with no models returns { <type>: [] }", async () => {
+    const routes = createModelsRoutes(() => ({
+      images: [],
+      video: [],
+      editing: [],
+      audio: [],
+      upscalers: [],
+    }));
+    const testApp = new Elysia().use(routes);
+    const res = await testApp.handle(new Request("http://localhost/v1/models?type=audio"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.audio).toEqual([]);
+    expect("images" in body).toBe(false);
   });
 });
