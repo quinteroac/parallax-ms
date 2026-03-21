@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { type Architecture, validateModelsConfig } from "./model-config-schema";
+import {
+  type Architecture,
+  type ModelComponents,
+  validateModelsConfig,
+} from "./model-config-schema";
 
 export interface ModelEntry {
   id: string;
@@ -8,7 +12,7 @@ export interface ModelEntry {
   type: string;
   modalities: string[];
   description: string;
-  components: string[];
+  components: ModelComponents;
   /** Architecture variant; present for entries loaded from models.config.json. */
   architecture?: Architecture;
 }

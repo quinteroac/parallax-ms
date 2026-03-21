@@ -36,7 +36,7 @@ describe("US-001 GET /v1/models", () => {
       expect(typeof m.type).toBe("string");
       expect(Array.isArray(m.modalities)).toBe(true);
       expect(typeof m.description).toBe("string");
-      expect(Array.isArray(m.components)).toBe(true);
+      expect(typeof m.components).toBe("object");
     }
   });
 
@@ -50,7 +50,7 @@ describe("US-001 GET /v1/models", () => {
           type: "images",
           modalities: ["text-to-image"],
           description: "test",
-          components: ["unet"],
+          components: { unet: "unet.safetensors" },
         },
       ],
       video: [],
@@ -92,7 +92,7 @@ const imageModel: ModelEntry = {
   type: "images",
   modalities: ["text-to-image"],
   description: "test",
-  components: ["unet"],
+  components: { unet: "unet.safetensors" },
 };
 
 describe("US-002 GET /v1/models?type=", () => {
@@ -177,7 +177,13 @@ const fullModel: ModelEntry = {
   type: "images",
   modalities: ["text-to-image"],
   description: "Full SDXL model",
-  components: ["unet", "checkpoint", "clip", "text_encoder", "vae.image", "vae.audio"],
+  components: {
+    unet: "unet.safetensors",
+    checkpoint: "checkpoint.safetensors",
+    clip: "clip.safetensors",
+    text_encoder: "te.safetensors",
+    vae: { image: "vae_image.safetensors", audio: "vae_audio.safetensors" },
+  },
 };
 
 describe("US-003 GET /v1/models/:id", () => {
@@ -199,14 +205,13 @@ describe("US-003 GET /v1/models/:id", () => {
     expect(body.type).toBe("images");
     expect(body.modalities).toEqual(["text-to-image"]);
     expect(body.description).toBe("Full SDXL model");
-    expect(body.components).toEqual([
-      "unet",
-      "checkpoint",
-      "clip",
-      "text_encoder",
-      "vae.image",
-      "vae.audio",
-    ]);
+    expect(body.components).toEqual({
+      unet: "unet.safetensors",
+      checkpoint: "checkpoint.safetensors",
+      clip: "clip.safetensors",
+      text_encoder: "te.safetensors",
+      vae: { image: "vae_image.safetensors", audio: "vae_audio.safetensors" },
+    });
   });
 
   // AC01: works for a model that exists in the real config
@@ -217,8 +222,8 @@ describe("US-003 GET /v1/models/:id", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as ModelEntry;
     expect(body.id).toBe("stable-diffusion-xl-base");
-    expect(Array.isArray(body.components)).toBe(true);
-    expect(body.components.length).toBeGreaterThan(0);
+    expect(typeof body.components).toBe("object");
+    expect(Object.keys(body.components as Record<string, unknown>).length).toBeGreaterThan(0);
   });
 
   // AC02: returns 404 with { error: "Model not found" } when ID does not exist

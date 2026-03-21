@@ -16,6 +16,23 @@ export type Architecture = (typeof ARCHITECTURES)[number];
 const VALID_TYPES = new Set(["images", "video", "editing", "audio", "upscalers"]);
 const VALID_ARCHITECTURES = new Set<string>(ARCHITECTURES);
 
+/** Named-key components object describing the files that make up a model. */
+export interface ModelComponents {
+  /** Bundled checkpoint file (bundles UNet + text encoder(s) + VAE). */
+  checkpoint?: string;
+  /** Standalone UNet weights file. */
+  unet?: string;
+  /** CLIP text encoder file, or an array of files (e.g. clip_l + clip_g for SDXL). */
+  clip?: string | string[];
+  /** Standalone text encoder file (used alongside a separate CLIP). */
+  text_encoder?: string;
+  /** VAE weights, split by output modality. */
+  vae?: {
+    image?: string;
+    audio?: string;
+  };
+}
+
 /** A validated model entry matching the models.config.json schema. */
 export interface ModelConfigEntry {
   id: string;
@@ -23,8 +40,7 @@ export interface ModelConfigEntry {
   type: string;
   modalities: string[];
   description: string;
-  /** Flat list of component filenames / identifiers needed to load this model. */
-  components: string[];
+  components: ModelComponents;
   /**
    * Architecture variant that determines how component files are wired together:
    * - `bundled-checkpoint`: single file bundles UNet + text encoder(s) + VAE.
@@ -32,6 +48,42 @@ export interface ModelConfigEntry {
    * - `separate-unet-multi-vae`: shared UNet with distinct image VAE and audio VAE files.
    */
   architecture: Architecture;
+}
+
+function validateComponents(raw: unknown, index: number): ModelComponents {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    throw new Error(`models[${index}].components must be an object`);
+  }
+  const c = raw as Record<string, unknown>;
+
+  if (c.checkpoint !== undefined && typeof c.checkpoint !== "string")
+    throw new Error(`models[${index}].components.checkpoint must be a string`);
+
+  if (c.unet !== undefined && typeof c.unet !== "string")
+    throw new Error(`models[${index}].components.unet must be a string`);
+
+  if (c.clip !== undefined) {
+    const isStringOrArray =
+      typeof c.clip === "string" ||
+      (Array.isArray(c.clip) && (c.clip as unknown[]).every((s) => typeof s === "string"));
+    if (!isStringOrArray)
+      throw new Error(`models[${index}].components.clip must be a string or array of strings`);
+  }
+
+  if (c.text_encoder !== undefined && typeof c.text_encoder !== "string")
+    throw new Error(`models[${index}].components.text_encoder must be a string`);
+
+  if (c.vae !== undefined) {
+    if (typeof c.vae !== "object" || c.vae === null || Array.isArray(c.vae))
+      throw new Error(`models[${index}].components.vae must be an object`);
+    const vae = c.vae as Record<string, unknown>;
+    if (vae.image !== undefined && typeof vae.image !== "string")
+      throw new Error(`models[${index}].components.vae.image must be a string`);
+    if (vae.audio !== undefined && typeof vae.audio !== "string")
+      throw new Error(`models[${index}].components.vae.audio must be a string`);
+  }
+
+  return c as ModelComponents;
 }
 
 function validateEntry(raw: unknown, index: number): ModelConfigEntry {
@@ -57,8 +109,7 @@ function validateEntry(raw: unknown, index: number): ModelConfigEntry {
   if (typeof e.description !== "string")
     throw new Error(`models[${index}].description must be a string`);
 
-  if (!Array.isArray(e.components) || !e.components.every((c) => typeof c === "string"))
-    throw new Error(`models[${index}].components must be an array of strings`);
+  const components = validateComponents(e.components, index);
 
   if (typeof e.architecture !== "string" || !VALID_ARCHITECTURES.has(e.architecture))
     throw new Error(`models[${index}].architecture must be one of: ${ARCHITECTURES.join(", ")}`);
@@ -69,7 +120,7 @@ function validateEntry(raw: unknown, index: number): ModelConfigEntry {
     type: e.type,
     modalities: e.modalities as string[],
     description: e.description,
-    components: e.components as string[],
+    components,
     architecture: e.architecture as Architecture,
   };
 }

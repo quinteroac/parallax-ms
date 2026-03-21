@@ -1,0 +1,67 @@
+{
+  "executiveSummary": "The implementation for iteration 000004 successfully delivers the models discovery API (GET /v1/models, GET /v1/models?type=, GET /v1/models/:id) with correct HTTP semantics, 503/404/400 error handling, startup validation, env-var-based config path, and full test coverage. All five user stories are largely compliant. The principal gap is a structural divergence in the `components` field: FR-2 and FR-3 require it to be a named-key object (checkpoint, unet, clip, text_encoder, vae.image, vae.audio), but the implementation uses a flat string array. Additionally, the schema introduces an `architecture` enum field not specified in the PRD, and there is a stale `gateway/src/models.config.json` file alongside the canonical project-root config. These issues partially affect FR-2, FR-3, US-001-AC02, and US-003-AC01.",
+
+  "verificationByFR": [
+    {
+      "frId": "FR-1",
+      "assessment": "comply"
+    },
+    {
+      "frId": "FR-2",
+      "assessment": "partially_comply"
+    },
+    {
+      "frId": "FR-3",
+      "assessment": "does_not_comply"
+    },
+    {
+      "frId": "FR-4",
+      "assessment": "comply"
+    },
+    {
+      "frId": "FR-5",
+      "assessment": "comply"
+    },
+    {
+      "frId": "FR-6",
+      "assessment": "comply"
+    },
+    {
+      "frId": "FR-7",
+      "assessment": "comply"
+    },
+    {
+      "frId": "FR-8",
+      "assessment": "comply"
+    }
+  ],
+
+  "verificationByUS": [
+    {
+      "usId": "US-001",
+      "assessment": "partially_comply"
+    },
+    {
+      "usId": "US-002",
+      "assessment": "comply"
+    },
+    {
+      "usId": "US-003",
+      "assessment": "partially_comply"
+    },
+    {
+      "usId": "US-004",
+      "assessment": "partially_comply"
+    }
+  ],
+
+  "minorObservations": [
+    "A stale `gateway/src/models.config.json` file exists without the `architecture` field. It is not used at runtime (project-root path resolves correctly), but it may confuse developers browsing the gateway source tree.",
+    "The implementation adds an `architecture` enum field (`bundled-checkpoint`, `separate-unet-dual-clip-image-vae`, `separate-unet-multi-vae`) to the schema that is not specified in the PRD. While useful for distinguishing model layouts, it is undocumented from the PRD perspective and could be considered scope creep.",
+    "Startup validation does not halt the server on invalid config — it logs the error but continues listening. Clients may then receive 503 responses without a clear server-side signal that startup was degraded.",
+    "Custom validation is used instead of Zod. The PRD says 'Zod or equivalent', so this is acceptable, but the implementation comment explicitly notes the avoidance of Zod; this should be documented in the README or CLAUDE.md for team awareness.",
+    "The `models.config.example.json` uses JSON comments (via a prose block) but JSON does not support comments natively; the file is valid JSON but any inline documentation must live outside the JSON syntax (e.g., in a README)."
+  ],
+
+  "conclusionsAndRecommendations": "The implementation is solid in routing, error handling, test coverage, and env-var configuration. The critical fix required is aligning the `components` field with the PRD: change it from a flat string array to a named-key object (`{ checkpoint?, unet?, clip?, text_encoder?, vae?: { image?, audio? } }`). This impacts the schema (`model-config-schema.ts`), the `ModelEntry` interface (`model-store.ts`), both config files (`models.config.json`, `models.config.example.json`), and the test fixtures in `models.test.ts` and `us004.test.ts`. The `architecture` field should either be removed (if out of scope) or formally added to the PRD. The stale `gateway/src/models.config.json` should be deleted to avoid confusion. Optionally, consider failing fast on startup when config is invalid rather than continuing in a degraded state."
+}

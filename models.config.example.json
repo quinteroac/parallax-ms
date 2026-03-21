@@ -10,7 +10,9 @@
       "modalities": ["text-to-image", "image-to-image"],
       "description": "Human-readable description shown in the API.",
       "architecture": "bundled-checkpoint",
-      "components": ["my-model.safetensors"]
+      "components": {
+        "checkpoint": "my-model.safetensors"
+      }
     },
     {
       "_comment": "--- Variant 2: Separate UNet + dual CLIP encoders + image VAE ---",
@@ -21,12 +23,13 @@
       "modalities": ["text-to-image"],
       "description": "SDXL base model with separate component files.",
       "architecture": "separate-unet-dual-clip-image-vae",
-      "components": [
-        "sd_xl_base_1.0.safetensors",
-        "clip_l.safetensors",
-        "clip_g.safetensors",
-        "sdxl_vae.safetensors"
-      ]
+      "components": {
+        "unet": "sd_xl_base_1.0.safetensors",
+        "clip": ["clip_l.safetensors", "clip_g.safetensors"],
+        "vae": {
+          "image": "sdxl_vae.safetensors"
+        }
+      }
     },
     {
       "_comment": "--- Variant 3: Separate UNet + multi-VAE (image + audio) ---",
@@ -37,11 +40,13 @@
       "modalities": ["text-to-video", "text-to-audio"],
       "description": "Multi-modal generator with image and audio VAEs.",
       "architecture": "separate-unet-multi-vae",
-      "components": [
-        "unet.safetensors",
-        "image_vae.safetensors",
-        "audio_vae.safetensors"
-      ]
+      "components": {
+        "unet": "unet.safetensors",
+        "vae": {
+          "image": "image_vae.safetensors",
+          "audio": "audio_vae.safetensors"
+        }
+      }
     }
   ]
 }

@@ -1,0 +1,96 @@
+# Requirement: Versioned Public API Contract (Phase 4 Lock)
+
+## Context
+
+Iterations 000001–000004 delivered the repository foundation, async job pipeline, and model discovery. The gateway already exposes `POST /v1/jobs` and `GET /v1/jobs/:id`, but the job creation body is loosely validated (only `type` and `params`) — it does not require a `modelId` or `modality`, and there is no machine-readable API specification. This iteration locks the versioned public contract by tightening job creation validation, making OpenAPI documentation available at a discoverable URL, and updating documentation so the contract is definitive and client-safe.
+
+## Goals
+
+- Enforce `modelId` and `modality` as required, validated fields on `POST /v1/jobs`.
+- Guarantee consistent `pending / running / succeeded / failed` semantics across the in-memory store, `GET /v1/jobs/:id`, and SSE responses.
+- Expose an OpenAPI 3.x spec and Swagger UI at a documented URL (`/swagger`).
+- Update README and AGENTS.md so the locked public contract is reflected in project documentation.
+
+## User Stories
+
+### US-001: `POST /v1/jobs` validates `modelId` and `modality`
+
+**As a** client application, **I want** `POST /v1/jobs` to require and validate `modelId` and `modality` **so that** I receive a clear error immediately when I submit an unsupported or unknown combination instead of silently creating an invalid job.
+
+**Acceptance Criteria:**
+- [ ] Request body shape: `{ modelId: string, modality: string, params: object }`. `modelId` and `modality` are required; `params` is required (may be an empty object).
+- [ ] If `modelId` is missing or not a non-empty string, returns HTTP 400 with `{ error: "\`modelId\` is required and must be a non-empty string" }`.
+- [ ] If `modelId` does not match any model in the loaded `models.config.json`, returns HTTP 422 with `{ error: "Model not found: <modelId>" }`.
+- [ ] If `modality` is missing or not a non-empty string, returns HTTP 400 with `{ error: "\`modality\` is required and must be a non-empty string" }`.
+- [ ] If `modality` is not listed in the matched model's `modalities` array, returns HTTP 422 with `{ error: "Modality '<modality>' is not supported by model '<modelId>'" }`.
+- [ ] On valid input, returns HTTP 201 with `{ jobId: string }` (unchanged behaviour).
+- [ ] The job stored in the job-store includes `modelId` and `modality` alongside `type` (derived from the model's `type` field) and `params`.
+- [ ] If `models.config.json` is unavailable at request time, returns HTTP 503 with `{ error: "Model configuration unavailable" }`.
+- [ ] Existing tests pass; new unit/integration tests cover all error branches above.
+- [ ] Typecheck / lint passes.
+
+---
+
+### US-002: `GET /v1/jobs/:id` response shape is documented and consistent
+
+**As a** client application, **I want** `GET /v1/jobs/:id` to return a documented, stable response shape **so that** I can reliably map job state in my UI without guessing optional fields.
+
+**Acceptance Criteria:**
+- [ ] Response always includes: `id` (string), `status` (`"pending" | "running" | "succeeded" | "failed"`), `createdAt` (ISO 8601 string), `updatedAt` (ISO 8601 string).
+- [ ] Response includes `modelId` (string) and `modality` (string) — both always present (no longer implicit).
+- [ ] `url` (string) is present only when `status === "succeeded"`.
+- [ ] `error` (string) is present only when `status === "failed"`.
+- [ ] Returns HTTP 404 with `{ error: "Job not found" }` for unknown IDs (unchanged).
+- [ ] The Elysia route handler uses a typed response schema (TypeBox `t.Object(...)`) matching the shape above so Swagger reflects it.
+- [ ] Typecheck / lint passes.
+
+---
+
+### US-003: OpenAPI spec and Swagger UI accessible at `/swagger`
+
+**As a** client application developer, **I want** a Swagger UI available at `/swagger` and a raw OpenAPI JSON spec at `/swagger/json` **so that** I can explore and test all `/v1/...` endpoints interactively without reading source code.
+
+**Acceptance Criteria:**
+- [ ] `GET /swagger` returns an HTML Swagger UI page (HTTP 200).
+- [ ] `GET /swagger/json` returns a valid OpenAPI 3.x JSON document (HTTP 200).
+- [ ] The spec includes all `/v1/...` routes: `GET /v1/models`, `GET /v1/models/:id`, `POST /v1/jobs`, `GET /v1/jobs/:id`, `GET /v1/jobs/:id/events`.
+- [ ] Each route has a non-empty `summary` and documented request/response schemas (no routes with empty or missing `detail`).
+- [ ] The spec is served by the existing Elysia app (via `@elysiajs/swagger` plugin or equivalent); no separate process is required.
+- [ ] Typecheck / lint passes.
+
+---
+
+### US-004: README and AGENTS.md reflect the locked public contract
+
+**As a** developer or integrator, **I want** the README and AGENTS.md to describe the current versioned API surface **so that** the documentation is the authoritative reference for the job lifecycle and discovery endpoints.
+
+**Acceptance Criteria:**
+- [ ] README contains an **API reference** section (or updates an existing one) listing: `POST /v1/jobs` (request body, response, error codes), `GET /v1/jobs/:id` (response shape, all four statuses), `GET /v1/jobs/:id/events` (SSE event format), `GET /v1/models`, `GET /v1/models/:id`, and `GET /swagger`.
+- [ ] The README documents the four job statuses (`pending`, `running`, `succeeded`, `failed`) and when each field (`url`, `error`) is present.
+- [ ] `AGENTS.md` or `PROJECT_CONTEXT.md` "Implemented Capabilities" section is updated to reflect iteration 000005 deliverables.
+- [ ] No contradictions between README and current implementation.
+
+---
+
+## Functional Requirements
+
+- **FR-1:** `POST /v1/jobs` request body requires `modelId` (string), `modality` (string), and `params` (object). The `type` field is removed from the request body and is instead derived from the model's `type` in `models.config.json`.
+- **FR-2:** Validation order for `POST /v1/jobs`: (1) body shape check → 400, (2) model lookup → 422, (3) modality check → 422, (4) config unavailable → 503.
+- **FR-3:** The `Job` interface in `job-store.ts` gains `modelId: string` and `modality: string` fields; `type` is kept for internal reference.
+- **FR-4:** `GET /v1/jobs/:id` response always includes `modelId` and `modality`; `url` and `error` are omitted (not `null`) when not applicable.
+- **FR-5:** The Swagger plugin is registered on the root Elysia app in `index.ts` with `title: "Parallax Media Server"` and the current API version.
+- **FR-6:** All `/v1/...` route `detail.summary` strings are present and descriptive (non-empty).
+- **FR-7:** README API reference section uses a consistent format: route, method, brief description, request schema, response schema, and error codes.
+
+## Non-Goals (Out of Scope)
+
+- Authentication or authorisation on any endpoint.
+- Persistent job store (remains in-memory).
+- Hot-reloading `models.config.json` without restart.
+- Per-modality inference validation beyond the `modalities` array check (e.g. validating `params` fields for a specific modality).
+- Worker-side changes — this iteration is gateway-only.
+- Idempotency of job creation (explicitly out of scope; document as "not idempotent" in README).
+
+## Open Questions
+
+- None
