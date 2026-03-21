@@ -55,4 +55,8 @@
 
 <!-- Updated at the end of each iteration by nvst create project-context -->
 
-- **Iteration 000001 (current):** Requirements and PRD approved for repository foundation (monorepo layout, Bun/uv, dotenvx or equivalent, documented health routes, README-aligned manifests). **Implementation not yet landed** — gateway/worker packages and manifests are still to be added in prototype work.
+- **Iteration 000001:** Repository foundation — monorepo layout, gateway (Bun + Elysia) and worker (uv + FastAPI) packages, dotenvx for env loading, `GET /health` on both processes, README-aligned manifests.
+- **Iteration 000002:** Async job lifecycle — `POST /v1/jobs` creates a job and enqueues it; `GET /v1/jobs/:id` returns job state; `GET /v1/jobs/:id/events` delivers the terminal event via SSE; `/worker/done` callback updates job to `succeeded`/`failed` and fires SSE.
+- **Iteration 000003:** OpenAPI spec and Swagger UI at `GET /swagger` via `@elysiajs/swagger`; all routes carry `detail.summary` annotations.
+- **Iteration 000004:** `models.config.json` schema (`ModelConfigSchema` via Zod), file placement at repo root, `loadModels()` / `findModelById()` utilities, `MODELS_CONFIG_PATH` env override; `GET /v1/models` and `GET /v1/models/:id` endpoints; job creation validates `modelId` and `modality` against the config.
+- **Iteration 000005 (current):** README updated with full API reference section covering `POST /v1/jobs`, `GET /v1/jobs/:id`, `GET /v1/jobs/:id/events`, `GET /v1/models`, `GET /v1/models/:id`, and `GET /swagger`; job status lifecycle and conditional fields (`url`, `error`) documented; PROJECT_CONTEXT Implemented Capabilities section brought up to date.

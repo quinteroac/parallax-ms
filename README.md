@@ -135,6 +135,160 @@ From `gateway/`: `bun run typecheck` and `bun run lint`. From `worker/`: `uv run
 
 **Cloud (RunPod, Vast AI, etc.)** — The API contract stays the same; only the base URL changes for clients. The Python worker can use GPUs with more VRAM so more models can stay resident at once.
 
+## API reference
+
+The gateway exposes a versioned REST API under `/v1`. An interactive Swagger UI is available at **`GET /swagger`** once the gateway is running.
+
+### Job statuses
+
+Every job moves through the following states:
+
+| Status | Meaning | `url` field | `error` field |
+|--------|---------|-------------|---------------|
+| `pending` | Job accepted, waiting in queue | absent | absent |
+| `running` | Worker is actively processing | absent | absent |
+| `succeeded` | Inference completed successfully | **present** — URL of the generated asset | absent |
+| `failed` | Inference failed | absent | **present** — human-readable error message |
+
+### `POST /v1/jobs`
+
+Create a new generation job. The job is enqueued immediately and processing starts asynchronously.
+
+**Request body** (JSON):
+
+```json
+{
+  "modelId": "string (required) — ID of the model to use",
+  "modality": "string (required) — generation modality (e.g. txt2img)",
+  "params": "object (required) — modality-specific parameters"
+}
+```
+
+**Responses:**
+
+| Status | Body | Condition |
+|--------|------|-----------|
+| `201 Created` | `{ "jobId": "uuid" }` | Job created successfully |
+| `400 Bad Request` | `{ "error": "..." }` | Missing or invalid `modelId`, `modality`, or `params` |
+| `422 Unprocessable Entity` | `{ "error": "..." }` | `modelId` not found, or `modality` not supported by the model |
+| `503 Service Unavailable` | `{ "error": "Model configuration unavailable" }` | Model config file cannot be read or is invalid |
+
+### `GET /v1/jobs/:id`
+
+Retrieve the current state of a job.
+
+**Response body** (`200 OK`):
+
+```json
+{
+  "id": "string",
+  "status": "pending | running | succeeded | failed",
+  "createdAt": "ISO 8601 timestamp",
+  "updatedAt": "ISO 8601 timestamp",
+  "modelId": "string",
+  "modality": "string",
+  "url": "string (only when status is succeeded)",
+  "error": "string (only when status is failed)"
+}
+```
+
+**Responses:**
+
+| Status | Body | Condition |
+|--------|------|-----------|
+| `200 OK` | Job object (see above) | Job found |
+| `404 Not Found` | `{ "error": "Job not found" }` | Unknown `id` |
+
+### `GET /v1/jobs/:id/events`
+
+Subscribe to a job's terminal event via **Server-Sent Events** (SSE). The stream sends exactly one event when the job reaches a terminal state (`succeeded` or `failed`), then closes.
+
+**Response headers:** `Content-Type: text/event-stream`
+
+**SSE event format:**
+
+```
+data: {"id":"<jobId>","status":"succeeded","url":"<asset-url>"}\n\n
+```
+
+For a failed job:
+
+```
+data: {"id":"<jobId>","status":"failed","error":"<message>"}\n\n
+```
+
+If the job is already in a terminal state when the client connects, the event is sent immediately.
+
+**Responses:**
+
+| Status | Body | Condition |
+|--------|------|-----------|
+| `200 OK` (SSE stream) | Event stream | Job found |
+| `404 Not Found` | `{ "error": "Job not found" }` | Unknown `id` |
+
+### `GET /v1/models`
+
+List all installed models grouped by type.
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `type` | string (optional) | Filter by type: `images`, `video`, `editing`, `audio`, `upscalers` |
+
+**Response body** (`200 OK`):
+
+```json
+{
+  "images": [ { "id": "...", "name": "...", "type": "images", "modalities": ["txt2img"], "description": "...", "components": {} } ],
+  "video":  [],
+  "editing": [],
+  "audio":  [],
+  "upscalers": []
+}
+```
+
+When `?type=images` is provided, only the matching key is returned.
+
+**Responses:**
+
+| Status | Body | Condition |
+|--------|------|-----------|
+| `200 OK` | Models object (optionally filtered) | Success |
+| `400 Bad Request` | `{ "error": "Invalid type. Valid values: images, video, editing, audio, upscalers" }` | Unknown type filter |
+| `503 Service Unavailable` | `{ "error": "Model configuration unavailable" }` | Config unreadable |
+
+### `GET /v1/models/:id`
+
+Retrieve a single model by its unique ID.
+
+**Response body** (`200 OK`):
+
+```json
+{
+  "id": "string",
+  "name": "string",
+  "type": "images | video | editing | audio | upscalers",
+  "modalities": ["txt2img"],
+  "description": "string",
+  "components": {}
+}
+```
+
+**Responses:**
+
+| Status | Body | Condition |
+|--------|------|-----------|
+| `200 OK` | Model object | Model found |
+| `404 Not Found` | `{ "error": "Model not found" }` | Unknown `id` |
+| `503 Service Unavailable` | `{ "error": "Model configuration unavailable" }` | Config unreadable |
+
+### `GET /swagger`
+
+Opens the interactive Swagger UI with the full OpenAPI spec for the gateway API.
+
+---
+
 ## API design
 
 Phased delivery is tracked in [ROADMAP.md](./ROADMAP.md).
