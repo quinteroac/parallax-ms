@@ -251,6 +251,62 @@ describe("US-003 GET /v1/models/:id", () => {
   });
 });
 
+describe("US-008-001 Video models in config", () => {
+  // AC01: models.config.json contains at least one txt2vid and one img2vid entry
+  test("AC01: GET /v1/models returns at least one txt2vid model under video", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, ModelEntry[]>;
+    expect(Array.isArray(body.video)).toBe(true);
+    const txt2vidModels = body.video.filter((m) => m.modalities.includes("txt2vid"));
+    expect(txt2vidModels.length).toBeGreaterThan(0);
+  });
+
+  test("AC01: GET /v1/models returns at least one img2vid model under video", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, ModelEntry[]>;
+    const img2vidModels = body.video.filter((m) => m.modalities.includes("img2vid"));
+    expect(img2vidModels.length).toBeGreaterThan(0);
+  });
+
+  // AC02: each video model entry has the correct fields
+  test("AC02: video model entries have id, architecture, modality, and components fields", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, ModelEntry[]>;
+    expect(body.video.length).toBeGreaterThan(0);
+    for (const model of body.video) {
+      expect(typeof model.id).toBe("string");
+      expect(model.id.length).toBeGreaterThan(0);
+      expect(typeof model.architecture).toBe("string");
+      expect(Array.isArray(model.modalities)).toBe(true);
+      expect(typeof model.components).toBe("object");
+    }
+  });
+
+  // AC03: GET /v1/models/:id resolves each video model by its id
+  test("AC03: GET /v1/models/wan-video-t2v-14b returns the txt2vid model", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models/wan-video-t2v-14b"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ModelEntry;
+    expect(body.id).toBe("wan-video-t2v-14b");
+    expect(body.type).toBe("video");
+    expect(body.modalities).toContain("txt2vid");
+    expect(typeof body.components).toBe("object");
+  });
+
+  test("AC03: GET /v1/models/wan-video-i2v-14b returns the img2vid model", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models/wan-video-i2v-14b"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ModelEntry;
+    expect(body.id).toBe("wan-video-i2v-14b");
+    expect(body.type).toBe("video");
+    expect(body.modalities).toContain("img2vid");
+    expect(typeof body.components).toBe("object");
+  });
+});
+
 describe("US-007-001 Upscaler model in config", () => {
   // AC01: models.config.json contains at least one upscaler entry
   test("AC01: GET /v1/models returns at least one entry under upscalers", async () => {
