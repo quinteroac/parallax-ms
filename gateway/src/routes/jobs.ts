@@ -1,7 +1,11 @@
 import { Elysia, t } from "elysia";
 import { createJob, getJob } from "../job-store";
+import { findModelById, loadModels } from "../model-store";
+import type { ModelsResponse } from "../model-store";
 import { enqueueJob } from "../queue";
 import { type JobTerminalEvent, subscribe } from "../sse-emitter";
+
+type Loader = () => ModelsResponse;
 
 function sseEvent(event: JobTerminalEvent): string {
   const data: Record<string, unknown> = { id: event.id, status: event.status };
@@ -10,103 +14,140 @@ function sseEvent(event: JobTerminalEvent): string {
   return `data: ${JSON.stringify(data)}\n\n`;
 }
 
-export const jobsRoutes = new Elysia({ prefix: "/v1" })
-  .get(
-    "/jobs/:id/events",
-    ({ params }) => {
-      const job = getJob(params.id);
-      if (!job) {
-        return new Response(JSON.stringify({ error: "Job not found" }), {
-          status: 404,
-          headers: { "content-type": "application/json" },
-        });
-      }
-
-      const isTerminal = job.status === "succeeded" || job.status === "failed";
-      let unsubscribe: (() => void) | undefined;
-
-      const stream = new ReadableStream<string>({
-        start(controller) {
-          const send = (evt: JobTerminalEvent) => {
-            controller.enqueue(sseEvent(evt));
-            controller.close();
-          };
-
-          if (isTerminal) {
-            send({
-              id: job.id,
-              status: job.status as "succeeded" | "failed",
-              url: job.url,
-              error: job.error,
-            });
-            return;
-          }
-
-          unsubscribe = subscribe(params.id, (evt) => {
-            unsubscribe?.();
-            unsubscribe = undefined;
-            send(evt);
+/** Factory so tests can inject a custom loader (e.g. one that throws). */
+export function createJobsRoutes(loader: Loader = loadModels) {
+  return new Elysia({ prefix: "/v1" })
+    .get(
+      "/jobs/:id/events",
+      ({ params }) => {
+        const job = getJob(params.id);
+        if (!job) {
+          return new Response(JSON.stringify({ error: "Job not found" }), {
+            status: 404,
+            headers: { "content-type": "application/json" },
           });
-        },
-        cancel() {
-          unsubscribe?.();
-        },
-      });
+        }
 
-      return new Response(stream, {
-        headers: {
-          "content-type": "text/event-stream",
-          "cache-control": "no-cache",
-          connection: "keep-alive",
-        },
-      });
-    },
-    { detail: { summary: "Subscribe to job terminal event via SSE" } },
-  )
-  .get(
-    "/jobs/:id",
-    ({ params, set }) => {
-      const job = getJob(params.id);
-      if (!job) {
-        set.status = 404;
-        return { error: "Job not found" };
-      }
-      const response: Record<string, unknown> = {
-        id: job.id,
-        status: job.status,
-        createdAt: job.createdAt,
-        updatedAt: job.updatedAt,
-      };
-      if (job.url !== undefined) response.url = job.url;
-      if (job.error !== undefined) response.error = job.error;
-      return response;
-    },
-    { detail: { summary: "Get job status" } },
-  )
-  .post(
-    "/jobs",
-    ({ body, set }) => {
-      // Manual validation — Elysia coerces TypeBox schemas, so validate raw values.
-      if (typeof body !== "object" || body === null || Array.isArray(body)) {
-        set.status = 400;
-        return { error: "Request body must be a JSON object" };
-      }
-      const raw = body as Record<string, unknown>;
-      if (typeof raw.type !== "string" || raw.type.length === 0) {
-        set.status = 400;
-        return { error: "`type` is required and must be a non-empty string" };
-      }
-      if (typeof raw.params !== "object" || raw.params === null || Array.isArray(raw.params)) {
-        set.status = 400;
-        return { error: "`params` is required and must be a plain object" };
-      }
-      set.status = 201;
-      const job = createJob(raw.type, raw.params as Record<string, unknown>);
-      enqueueJob(job);
-      return { jobId: job.id };
-    },
-    {
-      body: t.Any(),
-      detail: { summary: "Create a new job" },
-    },
-  );
+        const isTerminal = job.status === "succeeded" || job.status === "failed";
+        let unsubscribe: (() => void) | undefined;
+
+        const stream = new ReadableStream<string>({
+          start(controller) {
+            const send = (evt: JobTerminalEvent) => {
+              controller.enqueue(sseEvent(evt));
+              controller.close();
+            };
+
+            if (isTerminal) {
+              send({
+                id: job.id,
+                status: job.status as "succeeded" | "failed",
+                url: job.url,
+                error: job.error,
+              });
+              return;
+            }
+
+            unsubscribe = subscribe(params.id, (evt) => {
+              unsubscribe?.();
+              unsubscribe = undefined;
+              send(evt);
+            });
+          },
+          cancel() {
+            unsubscribe?.();
+          },
+        });
+
+        return new Response(stream, {
+          headers: {
+            "content-type": "text/event-stream",
+            "cache-control": "no-cache",
+            connection: "keep-alive",
+          },
+        });
+      },
+      { detail: { summary: "Subscribe to job terminal event via SSE" } },
+    )
+    .get(
+      "/jobs/:id",
+      ({ params, set }) => {
+        const job = getJob(params.id);
+        if (!job) {
+          set.status = 404;
+          return { error: "Job not found" };
+        }
+        const response: Record<string, unknown> = {
+          id: job.id,
+          status: job.status,
+          createdAt: job.createdAt,
+          updatedAt: job.updatedAt,
+        };
+        if (job.url !== undefined) response.url = job.url;
+        if (job.error !== undefined) response.error = job.error;
+        return response;
+      },
+      { detail: { summary: "Get job status" } },
+    )
+    .post(
+      "/jobs",
+      ({ body, set }) => {
+        // Manual validation — Elysia coerces TypeBox schemas, so validate raw values.
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          set.status = 400;
+          return { error: "Request body must be a JSON object" };
+        }
+        const raw = body as Record<string, unknown>;
+
+        if (typeof raw.modelId !== "string" || raw.modelId.length === 0) {
+          set.status = 400;
+          return { error: "`modelId` is required and must be a non-empty string" };
+        }
+
+        if (typeof raw.modality !== "string" || raw.modality.length === 0) {
+          set.status = 400;
+          return { error: "`modality` is required and must be a non-empty string" };
+        }
+
+        if (typeof raw.params !== "object" || raw.params === null || Array.isArray(raw.params)) {
+          set.status = 400;
+          return { error: "`params` is required and must be a plain object" };
+        }
+
+        let models: ModelsResponse;
+        try {
+          models = loader();
+        } catch {
+          set.status = 503;
+          return { error: "Model configuration unavailable" };
+        }
+
+        const model = findModelById(models, raw.modelId);
+        if (!model) {
+          set.status = 422;
+          return { error: `Model not found: ${raw.modelId}` };
+        }
+
+        if (!model.modalities.includes(raw.modality)) {
+          set.status = 422;
+          return {
+            error: `Modality '${raw.modality}' is not supported by model '${raw.modelId}'`,
+          };
+        }
+
+        set.status = 201;
+        const job = createJob(model.type, raw.params as Record<string, unknown>, {
+          modelId: raw.modelId,
+          modality: raw.modality,
+        });
+        enqueueJob(job);
+        return { jobId: job.id };
+      },
+      {
+        body: t.Any(),
+        detail: { summary: "Create a new job" },
+      },
+    );
+}
+
+export const jobsRoutes = createJobsRoutes();

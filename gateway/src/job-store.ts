@@ -6,6 +6,8 @@ export type JobStatus = "pending" | "running" | "succeeded" | "failed";
 export interface Job {
   id: string;
   type: string;
+  modelId?: string;
+  modality?: string;
   params: Record<string, unknown>;
   status: JobStatus;
   createdAt: string;
@@ -16,12 +18,18 @@ export interface Job {
 
 const store = new Map<string, Job>();
 
-export function createJob(type: string, params: Record<string, unknown>): Job {
+export function createJob(
+  type: string,
+  params: Record<string, unknown>,
+  extra?: { modelId?: string; modality?: string },
+): Job {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const job: Job = {
     id,
     type,
+    ...(extra?.modelId !== undefined && { modelId: extra.modelId }),
+    ...(extra?.modality !== undefined && { modality: extra.modality }),
     params,
     status: "pending",
     createdAt: now,
