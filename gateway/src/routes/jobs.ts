@@ -185,7 +185,13 @@ export function createJobsRoutes(loader: Loader = loadModels) {
         }
 
         set.status = 201;
-        const job = createJob(model.type, raw.params as Record<string, unknown>, {
+        // For img2vid jobs, fold the top-level inputImage into params as source_image
+        // so the worker receives it in the forwarded request body.
+        const jobParams: Record<string, unknown> =
+          raw.modality === "img2vid"
+            ? { ...(raw.params as Record<string, unknown>), source_image: raw.inputImage }
+            : (raw.params as Record<string, unknown>);
+        const job = createJob(model.type, jobParams, {
           modelId: raw.modelId,
           modality: raw.modality,
         });

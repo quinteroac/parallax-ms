@@ -131,6 +131,45 @@ async def run_inference(request: InferRequest) -> None:
             image.save(str(output_path))
             url = f"{callback_base}/outputs/{request.id}.png"
 
+        elif request.modality == "img2vid":
+            if request.source_image is None:
+                raise ValueError(
+                    "source_image is required for img2vid modality but was not provided."
+                )
+            pil_image = _decode_source_image(request.source_image)
+            image_tensor = image_to_tensor(pil_image)
+            fps = request.video_fps
+            length = max(1, int(request.duration * fps))
+            model, clip, vae = _load_model_components(
+                manager, request.architecture, request.components
+            )
+            positive = encode_prompt(clip, request.prompt)
+            negative = encode_prompt(clip, request.negative_prompt)
+            positive, negative, latent = wan_image_to_video(
+                positive,
+                negative,
+                vae,
+                width=request.width,
+                height=request.height,
+                length=length,
+                start_image=image_tensor,
+            )
+            denoised = sample(
+                model,
+                positive,
+                negative,
+                latent,
+                request.steps,
+                request.cfg,
+                request.sampler_name,
+                request.scheduler,
+                request.seed,
+            )
+            frames = vae_decode(vae, denoised)
+            output_path = output_dir / f"{request.id}.mp4"
+            save_video(frames, str(output_path), fps=float(fps))
+            url = f"{callback_base}/outputs/{request.id}.mp4"
+
         elif request.modality == "txt2vid":
             fps = request.video_fps
             length = max(1, int(request.duration * fps))
@@ -185,7 +224,7 @@ async def run_inference(request: InferRequest) -> None:
             else:
                 raise ValueError(
                     f"Unsupported modality '{request.modality}'. "
-                    "Supported: txt2img, img2img, upscale, txt2vid."
+                    "Supported: txt2img, img2img, upscale, txt2vid, img2vid."
                 )
 
             denoised = sample(

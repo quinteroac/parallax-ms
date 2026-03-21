@@ -9,7 +9,7 @@ class InferRequest(BaseModel):
     id: str
     prompt: str
     modelId: str = ""
-    modality: Literal["txt2img", "img2img", "upscale", "txt2vid"] = "txt2img"
+    modality: Literal["txt2img", "img2img", "upscale", "txt2vid", "img2vid"] = "txt2img"
     architecture: str = ""
     components: dict = {}
     negative_prompt: str = ""
