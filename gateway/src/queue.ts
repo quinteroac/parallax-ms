@@ -11,7 +11,7 @@ async function dispatchJob(job: Job): Promise<void> {
     const res = await fetch(`${workerBaseUrl}/infer`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: job.id, type: job.type, params: job.params }),
+      body: JSON.stringify({ id: job.id, ...job.params }),
     });
     if (res.status === 202) {
       updateJob(job.id, { status: "running" });

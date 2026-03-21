@@ -157,6 +157,17 @@ const html = `<!DOCTYPE html>
 
     <div class="row">
       <label>
+        Width
+        <input type="number" id="width" name="width" value="1024" min="64" max="2048" step="64" />
+      </label>
+      <label>
+        Height
+        <input type="number" id="height" name="height" value="1024" min="64" max="2048" step="64" />
+      </label>
+    </div>
+
+    <div class="row">
+      <label>
         Steps
         <input type="number" id="steps" name="steps" value="20" min="1" max="150" />
       </label>
@@ -224,6 +235,8 @@ const html = `<!DOCTYPE html>
 
       const prompt = document.getElementById('prompt').value.trim();
       const negativePrompt = document.getElementById('negative_prompt').value.trim();
+      const width = parseInt(document.getElementById('width').value, 10);
+      const height = parseInt(document.getElementById('height').value, 10);
       const steps = parseInt(document.getElementById('steps').value, 10);
       const seed = parseInt(document.getElementById('seed').value, 10);
 
@@ -231,7 +244,7 @@ const html = `<!DOCTYPE html>
 
       let jobId;
       try {
-        const params = { prompt, steps, seed };
+        const params = { prompt, width, height, steps, seed };
         if (negativePrompt) params.negative_prompt = negativePrompt;
 
         const res = await fetch('/v1/jobs', {

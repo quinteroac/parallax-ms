@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(ls /home/victor/AI/parallax-ms/*.env* /home/victor/AI/parallax-ms/.env*)",
-      "Bash(ls /home/victor/AI/parallax-ms/gateway/.env*)"
+      "Bash(ls /home/victor/AI/parallax-ms/gateway/.env*)",
+      "Bash(chmod +x /home/victor/AI/parallax-ms/scripts/dev.sh)"
     ]
   }
 }

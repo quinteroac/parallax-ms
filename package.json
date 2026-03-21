@@ -2,6 +2,6 @@
   "name": "parallax-ms",
   "private": true,
   "scripts": {
-    "dev": "portless"
+    "dev": "sh scripts/dev.sh"
   }
 }

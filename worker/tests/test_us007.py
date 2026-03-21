@@ -44,7 +44,6 @@ def test_e2e_txt2img_creates_png_and_posts_callback_url():
                 os.environ,
                 {
                     "OUTPUT_DIR": tmpdir,
-                    "WORKER_PUBLIC_URL": "http://localhost:8000",
                     "GATEWAY_CALLBACK_URL": "http://localhost:3000",
                 },
             ),

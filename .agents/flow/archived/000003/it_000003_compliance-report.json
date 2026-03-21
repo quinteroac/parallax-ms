@@ -1,0 +1,102 @@
+{
+  "iteration": "000003",
+  "generatedAt": "2026-03-20",
+  "executiveSummary": "All 7 user stories for iteration 000003 are implemented and functionally working. The full txt2img pipeline (encode_prompt → empty_latent_image → sample → vae_decode → PNG save), error propagation, playground, and automated E2E test are all in place. Two gaps were found: (1) FR-6 specifies that the *gateway* should serve output images as static files at `<GATEWAY_BASE_URL>/outputs/{job_id}.png`, but the implementation has the *worker* serving them at `<WORKER_PUBLIC_URL>/assets/{job_id}.png` — exposing the worker's address to clients and undermining the gateway-as-single-entry-point architecture; (2) FR-5 specifies a default OUTPUT_DIR of `./outputs` but the code defaults to `/tmp/parallax-output`. All other functional requirements fully comply.",
+  "verificationByFR": [
+    {
+      "frId": "FR-1",
+      "assessment": "comply",
+      "notes": "InferRequest Pydantic model in worker/src/parallax_worker/models.py has all 10 required fields with correct types and defaults."
+    },
+    {
+      "frId": "FR-2",
+      "assessment": "comply",
+      "notes": "startup.py calls comfy_diffusion.check_runtime() in bootstrap(); exits with sys.exit(1) if an 'error' key is returned."
+    },
+    {
+      "frId": "FR-3",
+      "assessment": "comply",
+      "notes": "MODELS_DIR and CHECKPOINT_FILENAME are read from env in startup.py; missing/empty values cause a logged error and sys.exit(1)."
+    },
+    {
+      "frId": "FR-4",
+      "assessment": "comply",
+      "notes": "tasks.py implements the exact pipeline sequence: encode_prompt (positive + negative) → empty_latent_image → sample (with all sampler params) → vae_decode → image.save(PNG)."
+    },
+    {
+      "frId": "FR-5",
+      "assessment": "partially_comply",
+      "notes": "OUTPUT_DIR is configurable via env var and used correctly. However, the code defaults to '/tmp/parallax-output' instead of './outputs' as specified in the PRD."
+    },
+    {
+      "frId": "FR-6",
+      "assessment": "partially_comply",
+      "notes": "Images ARE served as static files and URLs ARE included in callbacks. However, the PRD requires the *gateway* to serve them at '<GATEWAY_BASE_URL>/outputs/{job_id}.png'. The implementation has the *worker* serving them at '<WORKER_PUBLIC_URL>/assets/{job_id}.png'. This exposes the worker's address to clients and breaks the single-entry-point pattern. The path prefix is '/assets/' not '/outputs/'."
+    },
+    {
+      "frId": "FR-7",
+      "assessment": "comply",
+      "notes": "tasks.py catches all exceptions and POSTs {id, error: str(exc)} to the callback URL. A nested try/except ensures the error callback attempt itself cannot silently swallow the failure."
+    },
+    {
+      "frId": "FR-8",
+      "assessment": "comply",
+      "notes": "gateway/src/routes/worker.ts accepts optional 'error' field; sets job status to 'failed' and triggers SSE via updateJob() which calls emit()."
+    },
+    {
+      "frId": "FR-9",
+      "assessment": "comply",
+      "notes": "gateway/src/routes/playground.ts serves HTML at GET /playground with form fields (Prompt, Negative prompt, Steps, Seed), SSE subscription, loading indicator, image display on success, and error display on failure."
+    },
+    {
+      "frId": "FR-10",
+      "assessment": "comply",
+      "notes": "worker/.env.example documents MODELS_DIR, CHECKPOINT_FILENAME, OUTPUT_DIR, GATEWAY_CALLBACK_URL, and WORKER_PUBLIC_URL with descriptive comments."
+    }
+  ],
+  "verificationByUS": [
+    {
+      "usId": "US-001",
+      "assessment": "comply",
+      "notes": "InferRequest model defined; missing id/prompt → 422; valid request → 202 Accepted."
+    },
+    {
+      "usId": "US-002",
+      "assessment": "comply",
+      "notes": "bootstrap() in lifespan handler: check_runtime(), ModelManager(MODELS_DIR), load_checkpoint(CHECKPOINT_FILENAME), sys.exit on failure. GET /health returns 200 only after is_ready() is true."
+    },
+    {
+      "usId": "US-003",
+      "assessment": "comply",
+      "notes": "Full pipeline runs in background task; PNG saved to OUTPUT_DIR/{job_id}.png using all validated request parameters."
+    },
+    {
+      "usId": "US-004",
+      "assessment": "partially_comply",
+      "notes": "AC02, AC03, AC04 are met: callback includes URL, GET /v1/job/:id returns url, image is reachable. AC01 says 'Worker serves output images as static files (see FR-6)' — the worker does serve them, but FR-6 architecturally mandates the gateway. The URL served is via WORKER_PUBLIC_URL/assets/ rather than GATEWAY_BASE_URL/outputs/, deviating from FR-6 intent."
+    },
+    {
+      "usId": "US-005",
+      "assessment": "comply",
+      "notes": "Exception → error callback → gateway sets status 'failed' → SSE emits failed event → GET /v1/job/:id returns {status:'failed', error:'...'}. No silent hangs confirmed by nested try/except pattern."
+    },
+    {
+      "usId": "US-006",
+      "assessment": "comply",
+      "notes": "Playground served at GET /playground with all required form fields, SSE client logic, loading indicator, inline image display on success, error display on failure. AC06 (visual verification) is a manual criterion and cannot be asserted statically."
+    },
+    {
+      "usId": "US-007",
+      "assessment": "comply",
+      "notes": "worker/tests/test_us007.py submits POST /infer, asserts PNG exists on disk with size > 0, asserts callback contains valid URL field. Test is skipped when MODELS_DIR/CHECKPOINT_FILENAME env vars are absent. uv run pytest passes/skips gracefully."
+    }
+  ],
+  "minorObservations": [
+    "OUTPUT_DIR default is '/tmp/parallax-output' in tasks.py (and worker main.py) instead of './outputs' as specified in FR-5. This is a cosmetic difference in development but may cause confusion when following the PRD.",
+    "The /worker/done handler in gateway/src/routes/worker.ts rejects payloads where both 'url' and 'error' are absent, but does not explicitly reject payloads where BOTH are present simultaneously. This edge case is harmless (url takes precedence via hasError check) but could be more explicit.",
+    "The playground HTML (US-006-AC06) has no explicit CSRF protection or input length limits, which is acceptable for a developer-only tool but worth noting.",
+    "worker/src/parallax_worker/main.py serves assets at '/assets/{filename}' using a manual FileResponse rather than a framework static-file mount — functional but slightly fragile for path traversal (no normalization check beyond is_file()).",
+    "The SSE route (GET /v1/jobs/:id/events) returns a 404 JSON body with content-type text/event-stream headers if the job is not found, which may confuse SSE clients expecting a stream."
+  ],
+  "conclusionsAndRecommendations": "The iteration is functionally complete: inference, error propagation, playground, and tests all work. The primary architectural gap is FR-6: images should be served by the gateway (not the worker) so that clients communicate with a single endpoint. Recommended fix: add an Elysia static mount (or proxy route) in the gateway for OUTPUT_DIR, update the URL construction in tasks.py to use GATEWAY_BASE_URL/outputs/{job_id}.png, and remove the /assets route from the worker. A secondary fix is to align the OUTPUT_DIR default from '/tmp/parallax-output' to './outputs' (or keep the temp path but document it explicitly as a divergence). These two changes will bring FR-5 and FR-6 to full compliance without touching any other logic."
+}

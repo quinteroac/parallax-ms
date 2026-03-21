@@ -1,0 +1,9 @@
+# Parallax gateway — copy to ".env" and adjust. Placeholders only (no real secrets).
+#
+# --- Phase 1 (optional; defaults match README) ---
+# PORT=3000
+#
+# --- Later phases (placeholders; uncomment when wiring integration) ---
+WORKER_BASE_URL=http://worker.localhost:1355
+GATEWAY_PUBLIC_URL=http://gateway.localhost:1355
+# INTERNAL_CALLBACK_SECRET=your-shared-secret-placeholder

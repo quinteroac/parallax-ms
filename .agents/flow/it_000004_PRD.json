@@ -1,0 +1,145 @@
+{
+  "goals": [
+    "Expose a stable `GET /v1/models` discovery endpoint that returns installed models grouped by type.",
+    "Allow clients to filter models by type via query parameter.",
+    "Allow clients to retrieve a single model's full component details by ID.",
+    "Keep discovery entirely within the existing gateway (TypeScript / Bun / Elysia) — no new services.",
+    "Gracefully handle a missing or malformed `models.config.json`."
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "List all models grouped by type",
+      "description": "As a client application, I want to call `GET /v1/models` so that I can display all available models organised by category.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-001-AC01",
+          "text": "`GET /v1/models` returns HTTP 200 with a JSON body shaped as `{ images: [...], video: [...], editing: [...], audio: [...], upscalers: [...] }`."
+        },
+        {
+          "id": "US-001-AC02",
+          "text": "Each entry in the arrays includes at minimum: `id`, `name`, `type`, `modalities`, `description`, and `components`."
+        },
+        {
+          "id": "US-001-AC03",
+          "text": "Types with no configured models return an empty array (`[]`), not a missing key."
+        },
+        {
+          "id": "US-001-AC04",
+          "text": "If `models.config.json` is missing or cannot be parsed, the endpoint returns HTTP 503 with `{ error: \"Model configuration unavailable\" }`."
+        },
+        {
+          "id": "US-001-AC05",
+          "text": "Typecheck / lint passes."
+        }
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Filter models by type",
+      "description": "As a client application, I want to call `GET /v1/models?type=images` so that I only receive models relevant to the modality I support.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-002-AC01",
+          "text": "`GET /v1/models?type=images` returns HTTP 200 with `{ images: [...] }` containing only models whose `type` is `images`."
+        },
+        {
+          "id": "US-002-AC02",
+          "text": "Valid type values: `images`, `video`, `editing`, `audio`, `upscalers` (case-insensitive)."
+        },
+        {
+          "id": "US-002-AC03",
+          "text": "An unknown `type` value returns HTTP 400 with `{ error: \"Invalid type. Valid values: images, video, editing, audio, upscalers\" }`."
+        },
+        {
+          "id": "US-002-AC04",
+          "text": "If the valid type has no configured models, returns `{ <type>: [] }`."
+        },
+        {
+          "id": "US-002-AC05",
+          "text": "Typecheck / lint passes."
+        }
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Get a single model by ID",
+      "description": "As a client application, I want to call `GET /v1/models/:id` so that I can inspect the full component details of a specific model before submitting an inference job.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-003-AC01",
+          "text": "`GET /v1/models/:id` returns HTTP 200 with the full model object (including `components` with all sub-paths: `unet`, `checkpoint`, `clip`, `text_encoder`, `vae.image`, `vae.audio`, etc.) when the ID exists."
+        },
+        {
+          "id": "US-003-AC02",
+          "text": "Returns HTTP 404 with `{ error: \"Model not found\" }` when the ID does not exist."
+        },
+        {
+          "id": "US-003-AC03",
+          "text": "Typecheck / lint passes."
+        }
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "`models.config.json` schema and file placement",
+      "description": "As a developer, I want a documented and validated `models.config.json` so that I can configure models without guessing the expected shape.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-004-AC01",
+          "text": "A `models.config.json` file is created at the project root (or a documented location, configurable via `MODELS_CONFIG_PATH` env var)."
+        },
+        {
+          "id": "US-004-AC02",
+          "text": "The file contains at least one example entry for each model architecture variant: bundled checkpoint, separate unet + dual-clip + image VAE, and separate unet + multi-VAE (image + audio)."
+        },
+        {
+          "id": "US-004-AC03",
+          "text": "The gateway loads and validates the file on startup; a Zod (or equivalent) schema enforces the shape and logs a clear error if validation fails."
+        },
+        {
+          "id": "US-004-AC04",
+          "text": "A `models.config.example.json` (or inline README section) documents every supported field."
+        },
+        {
+          "id": "US-004-AC05",
+          "text": "Typecheck / lint passes."
+        }
+      ]
+    }
+  ],
+  "functionalRequirements": [
+    {
+      "id": "FR-1",
+      "description": "** The gateway reads `models.config.json` from the path defined by `MODELS_CONFIG_PATH` env var, defaulting to `./models.config.json` relative to the gateway package root."
+    },
+    {
+      "id": "FR-2",
+      "description": "** The config file schema supports a top-level `models` array. Each entry has: `id` (string, unique), `name` (string), `type` (enum: `images | video | editing | audio | upscalers`), `modalities` (string array), `description` (string), and `components` (object)."
+    },
+    {
+      "id": "FR-3",
+      "description": "** `components` is a flexible object with optional keys: `checkpoint` (string), `unet` (string), `clip` (string | string[]), `text_encoder` (string), `vae` (object with optional `image` string and `audio` string)."
+    },
+    {
+      "id": "FR-4",
+      "description": "** All component paths are relative strings; the gateway does not validate that files exist on disk at startup."
+    },
+    {
+      "id": "FR-5",
+      "description": "** `GET /v1/models` groups models by type and always returns all five type keys."
+    },
+    {
+      "id": "FR-6",
+      "description": "** `GET /v1/models?type=<t>` returns only the matching type key."
+    },
+    {
+      "id": "FR-7",
+      "description": "** `GET /v1/models/:id` performs a lookup by `id` field."
+    },
+    {
+      "id": "FR-8",
+      "description": "** On missing or unparseable config, all three endpoints return HTTP 503 with `{ error: \"Model configuration unavailable\" }`."
+    }
+  ]
+}

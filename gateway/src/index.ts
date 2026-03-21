@@ -2,6 +2,7 @@ import { config } from "@dotenvx/dotenvx";
 import { Elysia } from "elysia";
 import { join } from "node:path";
 import { jobsRoutes } from "./routes/jobs";
+import { outputsRoutes } from "./routes/outputs";
 import { playgroundRoutes } from "./routes/playground";
 import { workerRoutes } from "./routes/worker";
 
@@ -14,6 +15,7 @@ export const app = new Elysia()
   })
   .get("/", () => ({ ok: true, service: "parallax-gateway" }))
   .use(jobsRoutes)
+  .use(outputsRoutes)
   .use(workerRoutes)
   .use(playgroundRoutes);
 

@@ -45,13 +45,12 @@ async def run_inference(request: InferRequest) -> None:
         image = vae_decode(vae, denoised)
 
         # Save artifact to disk
-        output_dir = Path(os.getenv("OUTPUT_DIR", "/tmp/parallax-output"))
+        output_dir = Path(os.getenv("OUTPUT_DIR", "./outputs"))
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / f"{request.id}.png"
         image.save(str(output_path))
 
-        worker_public_url = os.getenv("WORKER_PUBLIC_URL", "http://localhost:8000")
-        url = f"{worker_public_url}/assets/{request.id}.png"
+        url = f"{callback_base}/outputs/{request.id}.png"
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
