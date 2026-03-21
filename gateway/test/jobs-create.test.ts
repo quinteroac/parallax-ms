@@ -112,9 +112,9 @@ describe("US-001 POST /v1/jobs validates modelId and modality", () => {
   });
 
   // AC05: modality not in model's modalities
-  test("AC05: unsupported modality returns 422 with prescribed error", async () => {
+  test("AC05: unsupported modality returns 400 with prescribed error", async () => {
     const res = await postJob({ modelId: "test-model", modality: "video-generation", params: {} });
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe("Modality 'video-generation' is not supported by model 'test-model'");
   });
@@ -174,5 +174,79 @@ describe("US-001 POST /v1/jobs validates modelId and modality", () => {
       brokenLoader,
     );
     expect(res.status).toBe(503);
+  });
+});
+
+const upscalerModel: ModelEntry = {
+  id: "test-upscaler",
+  name: "Test Upscaler",
+  type: "upscalers",
+  modalities: ["upscale"],
+  description: "Test upscaler model for unit tests",
+  components: { checkpoint: "test.pth" },
+  architecture: "bundled-checkpoint",
+};
+
+const upscalerLoader = (): ModelsResponse => ({
+  images: [],
+  video: [],
+  editing: [],
+  audio: [],
+  upscalers: [upscalerModel],
+});
+
+describe("US-002 POST /v1/jobs accepts and validates upscale jobs", () => {
+  beforeEach(() => {
+    clearJobs();
+  });
+
+  // AC01: upscale job with valid upscaler model returns 201
+  test("AC01: modality 'upscale' with valid upscaler modelId returns 201 with { jobId }", async () => {
+    const res = await postJob(
+      {
+        modelId: "test-upscaler",
+        modality: "upscale",
+        params: { source_image: "data:image/png;base64,abc" },
+      },
+      upscalerLoader,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { jobId: string };
+    expect(typeof body.jobId).toBe("string");
+    expect(body.jobId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  // AC02: model that does not support 'upscale' returns 400
+  test("AC02: model that does not support 'upscale' returns 400 with clear error", async () => {
+    const res = await postJob({
+      modelId: "test-model",
+      modality: "upscale",
+      params: { source_image: "img" },
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/not supported/i);
+    expect(body.error).toContain("upscale");
+  });
+
+  // AC03: missing source_image in params returns 400
+  test("AC03: missing source_image returns 400 with clear error", async () => {
+    const res = await postJob(
+      { modelId: "test-upscaler", modality: "upscale", params: {} },
+      upscalerLoader,
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/source_image/);
+  });
+
+  test("AC03: null source_image returns 400", async () => {
+    const res = await postJob(
+      { modelId: "test-upscaler", modality: "upscale", params: { source_image: null } },
+      upscalerLoader,
+    );
+    expect(res.status).toBe(400);
   });
 });

@@ -160,10 +160,18 @@ export function createJobsRoutes(loader: Loader = loadModels) {
         }
 
         if (!model.modalities.includes(raw.modality)) {
-          set.status = 422;
+          set.status = 400;
           return {
             error: `Modality '${raw.modality}' is not supported by model '${raw.modelId}'`,
           };
+        }
+
+        if (raw.modality === "upscale") {
+          const params = raw.params as Record<string, unknown>;
+          if (!params.source_image) {
+            set.status = 400;
+            return { error: "`source_image` is required in `params` for upscale jobs" };
+          }
         }
 
         set.status = 201;

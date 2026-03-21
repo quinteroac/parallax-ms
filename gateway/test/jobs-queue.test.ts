@@ -203,6 +203,38 @@ describe("US-001 (it_000006) Gateway forwards model fields to worker /infer", ()
     expect(stored.error).toMatch(/Model not found/);
   });
 
+  // ---------- US-002 AC04 ----------
+
+  test("US-002-AC04: upscale job body includes architecture, components, modality, and source_image", async () => {
+    let capturedBody: unknown;
+
+    global.fetch = mock(async (_input: unknown, init?: RequestInit) => {
+      capturedBody = JSON.parse(String(init?.body));
+      return new Response(null, { status: 202 });
+    }) as unknown as typeof fetch;
+
+    const job = createJob(
+      "upscalers",
+      { source_image: "data:image/png;base64,abc" },
+      {
+        modelId: "4x-ultrasharp",
+        modality: "upscale",
+      },
+    );
+    enqueueJob(job);
+    await queue.onIdle();
+
+    expect(capturedBody).toMatchObject({
+      id: job.id,
+      modelId: "4x-ultrasharp",
+      modality: "upscale",
+      architecture: "bundled-checkpoint",
+      source_image: "data:image/png;base64,abc",
+    });
+    const body = capturedBody as Record<string, unknown>;
+    expect(body.components).toBeDefined();
+  });
+
   // ---------- typecheck + lint ----------
 
   test("typecheck and lint pass", () => {
