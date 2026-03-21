@@ -12,7 +12,8 @@ export const outputsRoutes = new Elysia().get(
       set.status = 404;
       return { error: "not found" };
     }
-    return new Response(file, { headers: { "content-type": "image/png" } });
+    const contentType = params.filename.endsWith(".mp4") ? "video/mp4" : "image/png";
+    return new Response(file, { headers: { "content-type": contentType } });
   },
   { detail: { summary: "Serve a generated image artifact" } },
 );

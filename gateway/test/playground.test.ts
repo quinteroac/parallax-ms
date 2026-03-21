@@ -234,6 +234,126 @@ describe("US-005 Playground supports model selection and img2img", () => {
   // ---------- typecheck / lint ----------
 });
 
+// ---------- video mode ----------
+
+describe("US-005 Playground supports video mode", () => {
+  // ---------- AC01: model selector filters video-capable models ----------
+
+  test("US-005-AC01: populateModelSelect filters by txt2vid modality", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("modality === 'txt2vid' || modality === 'img2vid'");
+    expect(body).toContain("m.modalities && m.modalities.includes(modality)");
+  });
+
+  // ---------- AC02: video modality options are present ----------
+
+  test("US-005-AC02: page contains radio inputs for txt2vid and img2vid modes", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain('value="txt2vid"');
+    expect(body).toContain('value="img2vid"');
+    expect(body).toContain('id="mode-txt2vid"');
+    expect(body).toContain('id="mode-img2vid"');
+  });
+
+  test("US-005-AC02: script shows vid-fields and hides generation-fields when video mode is selected", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("vidFields");
+    expect(body).toContain("isVideo");
+    expect(body).toContain("vid-fields");
+  });
+
+  // ---------- AC03: img2vid shows image upload and URL input ----------
+
+  test("US-005-AC03: page contains file input for img2vid source image", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain('id="img2vid_source_image"');
+    expect(body).toContain('id="img2vid-source"');
+  });
+
+  test("US-005-AC03: page contains URL text input for img2vid source image", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain('id="img2vid_source_url"');
+  });
+
+  test("US-005-AC03: img2vid-source section is shown/hidden based on img2vid mode", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("img2vidSource");
+    expect(body).toContain("isImg2vid");
+  });
+
+  // ---------- AC04: width, height, duration inputs ----------
+
+  test("US-005-AC04: page contains vid_width and vid_height inputs in vid-fields", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain('id="vid_width"');
+    expect(body).toContain('id="vid_height"');
+    const vidFieldsStart = body.indexOf('id="vid-fields"');
+    const vidFieldsEnd = body.indexOf('id="submit-btn"');
+    const section = body.slice(vidFieldsStart, vidFieldsEnd);
+    expect(section).toContain('id="vid_width"');
+    expect(section).toContain('id="vid_height"');
+    expect(section).toContain('id="duration"');
+  });
+
+  test("US-005-AC04: duration input is present with numeric type", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain('id="duration"');
+    expect(body).toMatch(/id="duration"[^>]*type="number"|type="number"[^>]*id="duration"/);
+  });
+
+  test("US-005-AC04: script reads vid_width, vid_height, and duration for video jobs", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("vid_width");
+    expect(body).toContain("vid_height");
+    expect(body).toContain("duration");
+    expect(body).toContain("params = { prompt, width, height, duration }");
+  });
+
+  // ---------- AC05: video element renders MP4 result ----------
+
+  test("US-005-AC05: page contains a video element with id result-video", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain('id="result-video"');
+    expect(body).toContain("<video");
+  });
+
+  test("US-005-AC05: showResult sets video src and shows video element for MP4 URLs", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("isVideoUrl");
+    expect(body).toContain(".endsWith('.mp4')");
+    expect(body).toContain("resultVideo.src = url");
+    expect(body).toContain("resultVideo");
+  });
+
+  test("US-005-AC05: showResult still handles image URLs with the img element", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("resultImg.src = url");
+    expect(body).toContain('id="result"');
+  });
+
+  // ---------- img2vid submits inputImage at top level ----------
+
+  test("US-005: img2vid job sends inputImage at top level of request body", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("modality === 'img2vid'");
+    expect(body).toContain("inputImage");
+    expect(body).toContain("JSON.stringify({ modelId, modality, inputImage, params })");
+  });
+});
+
 // ---------- upscale mode ----------
 
 describe("US-004 Playground supports upscale mode", () => {

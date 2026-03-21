@@ -91,6 +91,7 @@ const html = `<!DOCTYPE html>
       border: 1px solid #2e2e3e;
       border-radius: 8px;
       overflow: hidden;
+      flex-wrap: wrap;
     }
 
     .mode-toggle input[type="radio"] {
@@ -100,14 +101,15 @@ const html = `<!DOCTYPE html>
     .mode-toggle label {
       flex: 1;
       cursor: pointer;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: 500;
       color: #a0a0b0;
-      padding: 0.55rem 1rem;
+      padding: 0.55rem 0.75rem;
       text-align: center;
       transition: background 0.15s, color 0.15s;
       border-radius: 0;
       gap: 0;
+      white-space: nowrap;
     }
 
     .mode-toggle input[type="radio"]:checked + label {
@@ -176,6 +178,26 @@ const html = `<!DOCTYPE html>
     }
 
     .upscale-fields.visible {
+      display: flex;
+    }
+
+    .vid-fields {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .vid-fields.visible {
+      display: flex;
+    }
+
+    .img2vid-source {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .img2vid-source.visible {
       display: flex;
     }
 
@@ -248,6 +270,18 @@ const html = `<!DOCTYPE html>
     }
 
     #result.visible { display: block; }
+
+    #result-video {
+      display: none;
+      border-radius: 12px;
+      max-width: 512px;
+      margin-top: 1.5rem;
+      width: 100%;
+      border: 1px solid #2e2e3e;
+      background: #000;
+    }
+
+    #result-video.visible { display: block; }
   </style>
 </head>
 <body>
@@ -259,7 +293,7 @@ const html = `<!DOCTYPE html>
       <select id="model-select" name="modelId" required>
         <option value="" disabled selected>Loading models\u2026</option>
       </select>
-      <small id="model-hint" style="display:none;color:#888;">No upscale models are configured. Add a model with <code>modality: upscale</code> to models.config.json.</small>
+      <small id="model-hint" style="display:none;color:#888;"></small>
     </label>
 
     <fieldset style="border:none;padding:0;margin:0;">
@@ -271,6 +305,10 @@ const html = `<!DOCTYPE html>
         <label for="mode-img2img">img2img</label>
         <input type="radio" id="mode-upscale" name="modality" value="upscale" />
         <label for="mode-upscale">upscale</label>
+        <input type="radio" id="mode-txt2vid" name="modality" value="txt2vid" />
+        <label for="mode-txt2vid">txt2vid</label>
+        <input type="radio" id="mode-img2vid" name="modality" value="img2vid" />
+        <label for="mode-img2vid">img2vid</label>
       </div>
     </fieldset>
 
@@ -334,6 +372,35 @@ const html = `<!DOCTYPE html>
       </label>
     </div>
 
+    <div class="vid-fields" id="vid-fields">
+      <div class="img2vid-source" id="img2vid-source">
+        <label>
+          Source image
+          <input type="file" id="img2vid_source_image" name="img2vid_source_image" accept="image/*" />
+        </label>
+        <label>
+          Or image URL <span style="font-weight:400;color:#666">(used if no file is selected)</span>
+          <input type="text" id="img2vid_source_url" name="img2vid_source_url" placeholder="https://example.com/image.png" />
+        </label>
+      </div>
+
+      <div class="row">
+        <label>
+          Width
+          <input type="number" id="vid_width" name="vid_width" value="1280" min="64" max="2048" step="64" />
+        </label>
+        <label>
+          Height
+          <input type="number" id="vid_height" name="vid_height" value="720" min="64" max="2048" step="64" />
+        </label>
+      </div>
+
+      <label>
+        Duration (seconds)
+        <input type="number" id="duration" name="duration" value="5" min="1" max="60" step="0.5" />
+      </label>
+    </div>
+
     <button type="submit" id="submit-btn">Generate</button>
   </form>
 
@@ -345,6 +412,7 @@ const html = `<!DOCTYPE html>
   <div id="error" role="alert"></div>
 
   <img id="result" alt="Generated image" />
+  <video id="result-video" controls></video>
 
   <script>
     const form = document.getElementById('job-form');
@@ -353,9 +421,12 @@ const html = `<!DOCTYPE html>
     const loadingText = document.getElementById('loading-text');
     const errorEl = document.getElementById('error');
     const resultImg = document.getElementById('result');
+    const resultVideo = document.getElementById('result-video');
     const modelSelect = document.getElementById('model-select');
     const img2imgFields = document.getElementById('img2img-fields');
     const upscaleFields = document.getElementById('upscale-fields');
+    const vidFields = document.getElementById('vid-fields');
+    const img2vidSource = document.getElementById('img2vid-source');
     const generationFields = document.getElementById('generation-fields');
     const denoiseInput = document.getElementById('denoise_strength');
     const denoiseValue = document.getElementById('denoise-value');
@@ -366,18 +437,33 @@ const html = `<!DOCTYPE html>
     const modelHint = document.getElementById('model-hint');
 
     function populateModelSelect(modality) {
-      const filtered = modality === 'upscale'
-        ? allModels.filter((m) => m.modalities && m.modalities.includes('upscale'))
-        : allModels;
+      let filtered;
+      if (modality === 'upscale') {
+        filtered = allModels.filter((m) => m.modalities && m.modalities.includes('upscale'));
+      } else if (modality === 'txt2vid' || modality === 'img2vid') {
+        filtered = allModels.filter((m) => m.modalities && m.modalities.includes(modality));
+      } else {
+        filtered = allModels;
+      }
       modelSelect.innerHTML = '';
       if (filtered.length === 0) {
         const opt = document.createElement('option');
         opt.value = '';
         opt.disabled = true;
         opt.selected = true;
-        opt.textContent = allModels.length === 0 ? 'No models available' : 'No upscale models available';
+        if (allModels.length === 0) {
+          opt.textContent = 'No models available';
+          modelHint.style.display = 'none';
+        } else if (modality === 'upscale') {
+          opt.textContent = 'No upscale models available';
+          modelHint.style.display = '';
+          modelHint.textContent = 'No upscale models are configured. Add a model with modality: upscale to models.config.json.';
+        } else {
+          opt.textContent = 'No ' + modality + ' models available';
+          modelHint.style.display = '';
+          modelHint.textContent = 'No ' + modality + ' models are configured. Add a model with modality: ' + modality + ' to models.config.json.';
+        }
         modelSelect.appendChild(opt);
-        modelHint.style.display = (modality === 'upscale' && allModels.length > 0) ? '' : 'none';
       } else {
         modelHint.style.display = 'none';
         filtered.forEach((m) => {
@@ -424,14 +510,23 @@ const html = `<!DOCTYPE html>
         const modality = document.querySelector('input[name="modality"]:checked').value;
         const isImg2img = modality === 'img2img';
         const isUpscale = modality === 'upscale';
+        const isVideo = modality === 'txt2vid' || modality === 'img2vid';
+        const isImg2vid = modality === 'img2vid';
 
         if (isUpscale) {
           generationFields.classList.add('hidden');
           upscaleFields.classList.add('visible');
+          vidFields.classList.remove('visible');
           submitBtn.textContent = 'Upscale';
+        } else if (isVideo) {
+          generationFields.classList.add('hidden');
+          upscaleFields.classList.remove('visible');
+          vidFields.classList.add('visible');
+          submitBtn.textContent = 'Generate video';
         } else {
           generationFields.classList.remove('hidden');
           upscaleFields.classList.remove('visible');
+          vidFields.classList.remove('visible');
           submitBtn.textContent = 'Generate';
         }
 
@@ -441,11 +536,17 @@ const html = `<!DOCTYPE html>
           img2imgFields.classList.remove('visible');
         }
 
+        if (isImg2vid) {
+          img2vidSource.classList.add('visible');
+        } else {
+          img2vidSource.classList.remove('visible');
+        }
+
         populateModelSelect(modality);
 
-        // disable generation controls when in upscale mode so browser validation
-        // doesn't block submission for hidden required fields
-        setGenerationControlsDisabled(isUpscale);
+        // disable generation controls when in upscale or video mode so browser
+        // validation doesn't block submission for hidden required fields
+        setGenerationControlsDisabled(isUpscale || isVideo);
       });
     });
 
@@ -462,6 +563,7 @@ const html = `<!DOCTYPE html>
       loadingText.textContent = text || 'Generating\u2026';
       errorEl.classList.remove('visible');
       resultImg.classList.remove('visible');
+      resultVideo.classList.remove('visible');
       submitBtn.disabled = true;
     }
 
@@ -476,8 +578,16 @@ const html = `<!DOCTYPE html>
     }
 
     function showResult(url) {
-      resultImg.src = url;
-      resultImg.classList.add('visible');
+      const isVideoUrl = url.toLowerCase().endsWith('.mp4');
+      if (isVideoUrl) {
+        resultVideo.src = url;
+        resultVideo.classList.add('visible');
+        resultImg.classList.remove('visible');
+      } else {
+        resultImg.src = url;
+        resultImg.classList.add('visible');
+        resultVideo.classList.remove('visible');
+      }
     }
 
     function closeEventSource() {
@@ -508,13 +618,7 @@ const html = `<!DOCTYPE html>
 
       const modelId = modelSelect.value;
       const modality = document.querySelector('input[name="modality"]:checked').value;
-      const prompt = document.getElementById('prompt').value.trim();
-      const negativePrompt = document.getElementById('negative_prompt').value.trim();
-      const width = parseInt(document.getElementById('width').value, 10);
-      const height = parseInt(document.getElementById('height').value, 10);
-      const steps = parseInt(document.getElementById('steps').value, 10);
-      const cfg = parseFloat(document.getElementById('cfg').value);
-      const seed = parseInt(document.getElementById('seed').value, 10);
+      const isVideo = modality === 'txt2vid' || modality === 'img2vid';
 
       if (!modelId) {
         showError('Please select a model before generating.');
@@ -538,7 +642,22 @@ const html = `<!DOCTYPE html>
           const base64 = await readFileAsBase64(file);
           // include an explicit empty prompt so worker validation doesn't fail
           params = { prompt: "", source_image: base64 };
+        } else if (isVideo) {
+          const prompt = document.getElementById('prompt').value.trim();
+          const negativePrompt = document.getElementById('negative_prompt').value.trim();
+          const width = parseInt(document.getElementById('vid_width').value, 10);
+          const height = parseInt(document.getElementById('vid_height').value, 10);
+          const duration = parseFloat(document.getElementById('duration').value);
+          params = { prompt, width, height, duration };
+          if (negativePrompt) params.negative_prompt = negativePrompt;
         } else {
+          const prompt = document.getElementById('prompt').value.trim();
+          const negativePrompt = document.getElementById('negative_prompt').value.trim();
+          const width = parseInt(document.getElementById('width').value, 10);
+          const height = parseInt(document.getElementById('height').value, 10);
+          const steps = parseInt(document.getElementById('steps').value, 10);
+          const cfg = parseFloat(document.getElementById('cfg').value);
+          const seed = parseInt(document.getElementById('seed').value, 10);
           params = { prompt, width, height, steps, cfg, seed };
           if (negativePrompt) params.negative_prompt = negativePrompt;
 
@@ -556,10 +675,28 @@ const html = `<!DOCTYPE html>
           }
         }
 
+        let inputImage;
+        if (modality === 'img2vid') {
+          const fileInput = document.getElementById('img2vid_source_image');
+          const file = fileInput.files && fileInput.files[0];
+          if (file) {
+            inputImage = await readFileAsBase64(file);
+          } else {
+            inputImage = document.getElementById('img2vid_source_url').value.trim();
+          }
+          if (!inputImage) {
+            hideLoading();
+            showError('Please provide a source image (file or URL) for img2vid.');
+            return;
+          }
+        }
+
         const res = await fetch('/v1/jobs', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ modelId, modality, params }),
+          body: modality === 'img2vid'
+            ? JSON.stringify({ modelId, modality, inputImage, params })
+            : JSON.stringify({ modelId, modality, params }),
         });
 
         if (!res.ok) {
@@ -575,7 +712,7 @@ const html = `<!DOCTYPE html>
         return;
       }
 
-      showLoading('Generating\u2026');
+      showLoading(isVideo ? 'Generating video\u2026' : 'Generating\u2026');
 
       const es = new EventSource('/v1/jobs/' + jobId + '/events');
       activeEventSource = es;
