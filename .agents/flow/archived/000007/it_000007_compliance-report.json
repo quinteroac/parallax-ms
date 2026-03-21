@@ -1,0 +1,70 @@
+{
+  "iteration": "000007",
+  "generatedAt": "2026-03-21",
+  "executiveSummary": "Iteration 000007 delivers complete end-to-end upscale support across all system layers. The models.config.json includes a valid upscaler entry (4x-UltraSharp), the gateway validates upscale jobs and rejects invalid requests with proper 400 errors, the worker branches on modality='upscale' and correctly calls the comfy_diffusion upscale API with full callback propagation, and the playground exposes a functional upscale mode with field toggling, model filtering, and result display. All functional requirements are satisfied and test coverage spans the happy path and both new 400 validation scenarios. No compliance gaps were found.",
+  "verificationByFR": [
+    {
+      "frId": "FR-1",
+      "assessment": "comply",
+      "notes": "ModelConfigSchema (gateway/src/model-config-schema.ts) adds 'upscalers' to VALID_TYPES set (line 17) and accepts any string in modalities array, permitting 'upscale' without breaking existing txt2img/img2img entries."
+    },
+    {
+      "frId": "FR-2",
+      "assessment": "comply",
+      "notes": "gateway/src/routes/jobs.ts lines 162-167 check model.modalities.includes(raw.modality) and return 400 with a descriptive error when the model does not support the requested modality."
+    },
+    {
+      "frId": "FR-3",
+      "assessment": "comply",
+      "notes": "gateway/src/routes/jobs.ts lines 169-175 check params.source_image when modality is 'upscale', returning 400 with '`source_image` is required in `params` for upscale jobs' if absent or falsy."
+    },
+    {
+      "frId": "FR-4",
+      "assessment": "comply",
+      "notes": "worker/src/parallax_worker/models.py InferRequest accepts modality: str = '' (any string) and source_image: str | None = None, satisfying validation for upscale requests without errors."
+    },
+    {
+      "frId": "FR-5",
+      "assessment": "comply",
+      "notes": "worker/src/parallax_worker/tasks.py branches on modality == 'upscale', decodes source_image via _decode_source_image(), loads upscale model via manager.load_upscale_model(), calls image_upscale_with_model(), saves to OUTPUT_DIR/<jobId>.png, and POSTs callback on both success and failure — mirroring existing patterns."
+    },
+    {
+      "frId": "FR-6",
+      "assessment": "comply",
+      "notes": "Gateway validates modality support against model.modalities before any queue dispatch (jobs.ts lines 162-167). Models without 'upscale' in modalities are rejected at the gateway layer, never forwarded to the worker."
+    },
+    {
+      "frId": "FR-7",
+      "assessment": "comply",
+      "notes": "gateway/test/jobs-create.test.ts lines 198-252 cover: AC01 (201 happy path with valid upscaler and source_image), AC02 (400 when model doesn't support upscale), AC03 (400 when source_image is missing or null). All three scenarios are explicitly tested."
+    }
+  ],
+  "verificationByUS": [
+    {
+      "usId": "US-001",
+      "assessment": "comply",
+      "notes": "models.config.json contains 4x-UltraSharp entry with type='upscalers' and modalities=['upscale']. GET /v1/models groups it under 'upscalers' key. GET /v1/models/:id retrieves it correctly. Schema typecheck passes."
+    },
+    {
+      "usId": "US-002",
+      "assessment": "comply",
+      "notes": "POST /v1/jobs accepts modality='upscale' with valid upscaler modelId (201). Rejects non-supporting models (400). Rejects missing source_image (400). Forwards architecture, components, modality, and source_image to worker via queue dispatcher."
+    },
+    {
+      "usId": "US-003",
+      "assessment": "comply",
+      "notes": "POST /infer with modality='upscale' returns 202 and starts background inference. Calls image_upscale_with_model() from comfy_diffusion with decoded source image and loaded upscale model. Saves to OUTPUT_DIR/<jobId>.png. Posts success callback {id, url}; posts error callback {id, error} on any failure."
+    },
+    {
+      "usId": "US-004",
+      "assessment": "comply",
+      "notes": "Playground adds 'upscale' to mode toggle (txt2img|img2img|upscale). Upscale mode shows source image file input and hides all generation fields (prompt, negative_prompt, width, height, steps, cfg, seed, denoise_strength). Model selector filters to modalities.includes('upscale'). Submission sends {modelId, modality:'upscale', params:{source_image}} as base64. Result image displayed on success; error string displayed on failure."
+    }
+  ],
+  "minorObservations": [
+    "The InferRequest.modality field is typed as `str` with no Literal constraint, so the worker accepts any string (e.g., 'invalid') without a Pydantic validation error. The current branch logic handles unknown modalities gracefully (falls through to txt2img path), but an explicit Literal['txt2img','img2img','upscale'] type annotation would harden the API contract.",
+    "playground.ts model filtering falls back to showing all models if no upscale models are available (with a 'No upscale models available' placeholder option). This matches AC03 allowance but the explanatory note mentioned in the AC is shown only as a disabled option text — a tooltip or label might improve discoverability.",
+    "The worker _decode_source_image() helper supports both pure base64 and data-URL formats, but the error message on invalid base64 is the raw exception string from PIL/base64 module, which may be cryptic for end users. A wrapped, friendlier error message in the callback would improve debuggability."
+  ],
+  "conclusionsAndRecommendations": "Iteration 000007 is fully compliant with the PRD. All 7 functional requirements and all 4 user stories are satisfied with no gaps. The implementation is architecturally consistent with existing txt2img/img2img patterns, test coverage is comprehensive, and the playground UI is functional and accessible. The three minor observations are non-blocking quality improvements: (1) add Literal type to InferRequest.modality for stronger Pydantic validation, (2) consider a visible note in the UI when no upscale models are available, and (3) wrap the _decode_source_image error message for clarity. These can be addressed as low-priority tech debt or folded into the next iteration if desired."
+}

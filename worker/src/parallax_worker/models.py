@@ -1,5 +1,7 @@
 """Pydantic models for the Parallax worker API."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -7,7 +9,7 @@ class InferRequest(BaseModel):
     id: str
     prompt: str
     modelId: str = ""
-    modality: str = ""
+    modality: Literal["txt2img", "img2img", "upscale"] = "txt2img"
     architecture: str = ""
     components: dict = {}
     negative_prompt: str = ""

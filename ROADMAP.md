@@ -83,6 +83,8 @@ This roadmap turns the vision and architecture described in [README.md](./README
 **Phase completion criteria**
 
 - [ ] **`txt2vid`** and **`img2vid`**: validated payloads; clear errors when video stacks or codecs are unsupported.
+- [ ] **`txt2vid`** and **`img2vid`** **LTX2 Architecture** : LTX2 is able to generate videos with sound, then pipeline is not the same as generic video.
+- [ ] **`txt2vid`** and **`img2vid`** **WAN 2.2 Architecture**: WAN 2.2 has an architecture of two models high_model for general composition and low_model for details, inferences is diferent.
 - [ ] **`upscale` → `video`**: full job path to a retrievable **`url`** and consistent job status.
 - [ ] Documentation lists supported containers/codecs, limits (duration, resolution), and failure modes.
 

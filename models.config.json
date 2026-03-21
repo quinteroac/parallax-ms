@@ -75,14 +75,14 @@
       }
     },
     {
-      "id": "4x-ultrasharp",
-      "name": "4x-UltraSharp",
+      "id": "4x-clearreality-v1",
+      "name": "4x-ClearReality V1",
       "type": "upscalers",
       "modalities": ["upscale"],
       "description": "4x ESRGAN upscaler optimized for photorealistic detail and texture enhancement.",
       "architecture": "bundled-checkpoint",
       "components": {
-        "checkpoint": "4x-UltraSharp.pth"
+        "checkpoint": "4x-ClearRealityV1.pth"
       }
     }
   ]

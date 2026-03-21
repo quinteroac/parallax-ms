@@ -1,0 +1,41 @@
+{
+  "iteration": "000007",
+  "generatedAt": "2026-03-21",
+  "outcome": "follow_recommendations",
+  "executiveSummary": "Iteration 000007 delivers complete end-to-end upscale support across all system layers. All 7 FRs and 4 USs comply. Three minor observations from the compliance report were resolved in-place during the audit.",
+  "verificationByFR": [
+    { "frId": "FR-1", "assessment": "comply" },
+    { "frId": "FR-2", "assessment": "comply" },
+    { "frId": "FR-3", "assessment": "comply" },
+    { "frId": "FR-4", "assessment": "comply" },
+    { "frId": "FR-5", "assessment": "comply" },
+    { "frId": "FR-6", "assessment": "comply" },
+    { "frId": "FR-7", "assessment": "comply" }
+  ],
+  "verificationByUS": [
+    { "usId": "US-001", "assessment": "comply" },
+    { "usId": "US-002", "assessment": "comply" },
+    { "usId": "US-003", "assessment": "comply" },
+    { "usId": "US-004", "assessment": "comply" }
+  ],
+  "minorObservations": [
+    "InferRequest.modality typed as Literal['txt2img','img2img','upscale'] — resolved.",
+    "Playground visible hint when no upscale models are available — resolved.",
+    "_decode_source_image() error messages made actionable and user-friendly — resolved."
+  ],
+  "conclusionsAndRecommendations": "All compliance gaps were observations only (non-blocking). All three have been addressed. Iteration 000007 is production-ready.",
+  "refactorPlan": [
+    {
+      "file": "worker/src/parallax_worker/models.py",
+      "change": "modality field changed from str to Literal['txt2img','img2img','upscale'] with default 'txt2img'."
+    },
+    {
+      "file": "gateway/src/routes/playground.ts",
+      "change": "Added <small id='model-hint'> below model select; shown only when upscale mode is active and no upscale models are found."
+    },
+    {
+      "file": "worker/src/parallax_worker/tasks.py",
+      "change": "Replaced dynamic f-string exception messages in _decode_source_image() with static, actionable error strings."
+    }
+  ]
+}

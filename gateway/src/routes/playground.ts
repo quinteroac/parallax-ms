@@ -6,6 +6,7 @@ const html = `<!DOCTYPE html>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Parallax Playground</title>
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%235b5bd6'/><text x='50' y='68' font-size='64' text-anchor='middle' fill='white'>P</text></svg>" />
   <style>
     *, *::before, *::after { box-sizing: border-box; }
 
@@ -258,6 +259,7 @@ const html = `<!DOCTYPE html>
       <select id="model-select" name="modelId" required>
         <option value="" disabled selected>Loading models\u2026</option>
       </select>
+      <small id="model-hint" style="display:none;color:#888;">No upscale models are configured. Add a model with <code>modality: upscale</code> to models.config.json.</small>
     </label>
 
     <fieldset style="border:none;padding:0;margin:0;">
@@ -361,6 +363,8 @@ const html = `<!DOCTYPE html>
     let activeEventSource = null;
     let allModels = [];
 
+    const modelHint = document.getElementById('model-hint');
+
     function populateModelSelect(modality) {
       const filtered = modality === 'upscale'
         ? allModels.filter((m) => m.modalities && m.modalities.includes('upscale'))
@@ -373,7 +377,9 @@ const html = `<!DOCTYPE html>
         opt.selected = true;
         opt.textContent = allModels.length === 0 ? 'No models available' : 'No upscale models available';
         modelSelect.appendChild(opt);
+        modelHint.style.display = (modality === 'upscale' && allModels.length > 0) ? '' : 'none';
       } else {
+        modelHint.style.display = 'none';
         filtered.forEach((m) => {
           const opt = document.createElement('option');
           opt.value = m.id;
@@ -403,6 +409,15 @@ const html = `<!DOCTYPE html>
       }
     })();
 
+    function setGenerationControlsDisabled(disabled) {
+      const controls = generationFields.querySelectorAll('input, select, textarea');
+      controls.forEach((el) => {
+        if (el.id === 'submit-btn') return;
+        if (disabled) el.setAttribute('disabled', '');
+        else el.removeAttribute('disabled');
+      });
+    }
+
     // Show/hide fields based on mode
     document.querySelectorAll('input[name="modality"]').forEach((radio) => {
       radio.addEventListener('change', () => {
@@ -427,8 +442,15 @@ const html = `<!DOCTYPE html>
         }
 
         populateModelSelect(modality);
+
+        // disable generation controls when in upscale mode so browser validation
+        // doesn't block submission for hidden required fields
+        setGenerationControlsDisabled(isUpscale);
       });
     });
+
+    // Ensure initial disabled state matches the current modality
+    setGenerationControlsDisabled(document.querySelector('input[name="modality"]:checked').value === 'upscale');
 
     // Live denoise strength display
     denoiseInput.addEventListener('input', () => {
@@ -514,7 +536,8 @@ const html = `<!DOCTYPE html>
             return;
           }
           const base64 = await readFileAsBase64(file);
-          params = { source_image: base64 };
+          // include an explicit empty prompt so worker validation doesn't fail
+          params = { prompt: "", source_image: base64 };
         } else {
           params = { prompt, width, height, steps, cfg, seed };
           if (negativePrompt) params.negative_prompt = negativePrompt;

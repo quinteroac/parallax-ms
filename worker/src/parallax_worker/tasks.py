@@ -83,7 +83,10 @@ def _decode_source_image(source_image: str) -> PILImage.Image:
     try:
         data = base64.b64decode(source_image)
     except Exception as exc:
-        raise ValueError(f"source_image is not valid base64: {exc}") from exc
+        raise ValueError(
+            "source_image contains invalid base64 data. "
+            "Ensure the image is base64-encoded (with or without a data-URL prefix)."
+        ) from exc
 
     if not data:
         raise ValueError("source_image decoded to empty bytes")
@@ -95,7 +98,8 @@ def _decode_source_image(source_image: str) -> PILImage.Image:
         return image
     except Exception as exc:
         raise ValueError(
-            f"source_image could not be decoded as a valid image: {exc}"
+            "source_image is not a recognised image format. "
+            "Supported formats include PNG, JPEG, and WebP."
         ) from exc
 
 
