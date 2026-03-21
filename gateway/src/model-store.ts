@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { type Architecture, validateModelsConfig } from "./model-config-schema";
 
 export interface ModelEntry {
   id: string;
@@ -8,19 +9,26 @@ export interface ModelEntry {
   modalities: string[];
   description: string;
   components: string[];
+  /** Architecture variant; present for entries loaded from models.config.json. */
+  architecture?: Architecture;
 }
 
 export const MODEL_TYPES = ["images", "video", "editing", "audio", "upscalers"] as const;
 export type ModelType = (typeof MODEL_TYPES)[number];
 export type ModelsResponse = Record<ModelType, ModelEntry[]>;
 
-const CONFIG_PATH = join(import.meta.dir, "models.config.json");
+/** Resolve the config path: MODELS_CONFIG_PATH env var → project root default. */
+function getConfigPath(): string {
+  return process.env.MODELS_CONFIG_PATH ?? join(import.meta.dir, "../../models.config.json");
+}
 
-/** Parse and group models by type. Throws if the config is unreadable or invalid. */
-export function loadModels(configPath: string = CONFIG_PATH): ModelsResponse {
+/** Parse, validate, and group models by type. Throws if the config is unreadable or invalid. */
+export function loadModels(configPath?: string): ModelsResponse {
+  const resolvedPath = configPath ?? getConfigPath();
+
   let raw: string;
   try {
-    raw = readFileSync(configPath, "utf-8");
+    raw = readFileSync(resolvedPath, "utf-8");
   } catch {
     throw new Error("Model configuration unavailable");
   }
@@ -32,12 +40,12 @@ export function loadModels(configPath: string = CONFIG_PATH): ModelsResponse {
     throw new Error("Model configuration unavailable");
   }
 
-  if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    !Array.isArray((parsed as Record<string, unknown>).models)
-  ) {
-    throw new Error("Model configuration unavailable");
+  let validated: ReturnType<typeof validateModelsConfig>;
+  try {
+    validated = validateModelsConfig(parsed);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Model configuration invalid: ${message}`);
   }
 
   const result: ModelsResponse = {
@@ -48,10 +56,9 @@ export function loadModels(configPath: string = CONFIG_PATH): ModelsResponse {
     upscalers: [],
   };
 
-  for (const model of (parsed as { models: unknown[] }).models) {
-    const entry = model as ModelEntry;
-    if (entry.type in result) {
-      result[entry.type as ModelType].push(entry);
+  for (const model of validated.models) {
+    if (model.type in result) {
+      result[model.type as ModelType].push(model);
     }
   }
 

@@ -1,0 +1,31 @@
+{
+  "models": [
+    {
+      "id": "stable-diffusion-v1-5",
+      "name": "Stable Diffusion v1.5",
+      "type": "images",
+      "modalities": ["text-to-image", "image-to-image"],
+      "description": "General-purpose latent diffusion model packed as a single bundled checkpoint.",
+      "architecture": "bundled-checkpoint",
+      "components": ["v1-5-pruned-emaonly.safetensors"]
+    },
+    {
+      "id": "stable-diffusion-xl-base",
+      "name": "Stable Diffusion XL Base",
+      "type": "images",
+      "modalities": ["text-to-image"],
+      "description": "High-resolution text-to-image model with separate UNet, dual CLIP encoders (L and G), and a dedicated image VAE.",
+      "architecture": "separate-unet-dual-clip-image-vae",
+      "components": ["sd_xl_base_1.0.safetensors", "clip_l.safetensors", "clip_g.safetensors", "sdxl_vae.safetensors"]
+    },
+    {
+      "id": "comfy-audio-video-gen",
+      "name": "Comfy Audio-Video Generator",
+      "type": "video",
+      "modalities": ["text-to-video", "text-to-audio"],
+      "description": "Multi-modal generation model with a shared UNet backbone and separate image and audio VAEs.",
+      "architecture": "separate-unet-multi-vae",
+      "components": ["unet.safetensors", "image_vae.safetensors", "audio_vae.safetensors"]
+    }
+  ]
+}

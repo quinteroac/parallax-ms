@@ -1,0 +1,47 @@
+{
+  "_comment": "Copy this file to models.config.json and adjust entries for your environment. The gateway reads the config from MODELS_CONFIG_PATH (env var) or defaults to models.config.json at the project root.",
+  "models": [
+    {
+      "_comment": "--- Variant 1: Bundled checkpoint ---",
+      "_description": "A single file (.safetensors or .ckpt) that bundles the UNet, text encoder(s), and VAE together. Common for SD 1.x / 2.x base models.",
+      "id": "my-sd-v1-model",
+      "name": "My SD v1 Model",
+      "type": "images",
+      "modalities": ["text-to-image", "image-to-image"],
+      "description": "Human-readable description shown in the API.",
+      "architecture": "bundled-checkpoint",
+      "components": ["my-model.safetensors"]
+    },
+    {
+      "_comment": "--- Variant 2: Separate UNet + dual CLIP encoders + image VAE ---",
+      "_description": "SDXL-style layout: the UNet, two CLIP text encoders (clip_l and clip_g), and a dedicated image VAE are stored as separate files.",
+      "id": "my-sdxl-model",
+      "name": "My SDXL Model",
+      "type": "images",
+      "modalities": ["text-to-image"],
+      "description": "SDXL base model with separate component files.",
+      "architecture": "separate-unet-dual-clip-image-vae",
+      "components": [
+        "sd_xl_base_1.0.safetensors",
+        "clip_l.safetensors",
+        "clip_g.safetensors",
+        "sdxl_vae.safetensors"
+      ]
+    },
+    {
+      "_comment": "--- Variant 3: Separate UNet + multi-VAE (image + audio) ---",
+      "_description": "Multi-modal model: a shared UNet backbone plus distinct VAEs for image and audio outputs.",
+      "id": "my-audio-video-model",
+      "name": "My Audio-Video Model",
+      "type": "video",
+      "modalities": ["text-to-video", "text-to-audio"],
+      "description": "Multi-modal generator with image and audio VAEs.",
+      "architecture": "separate-unet-multi-vae",
+      "components": [
+        "unet.safetensors",
+        "image_vae.safetensors",
+        "audio_vae.safetensors"
+      ]
+    }
+  ]
+}
