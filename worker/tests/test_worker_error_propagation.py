@@ -15,10 +15,12 @@ WORKER_ROOT = Path(__file__).resolve().parents[1]
 # AC01 — inference exception triggers error callback POST with {id, error}
 @pytest.mark.anyio
 async def test_ac01_inference_exception_posts_error_callback():
-    mock_checkpoint = MagicMock()
-
     with (
-        patch("parallax_worker.tasks.get_checkpoint", return_value=mock_checkpoint),
+        patch("parallax_worker.tasks.ModelManager"),
+        patch(
+            "parallax_worker.tasks._load_model_components",
+            return_value=(MagicMock(), MagicMock(), MagicMock()),
+        ),
         patch(
             "parallax_worker.tasks.encode_prompt",
             side_effect=RuntimeError("CUDA out of memory"),
@@ -44,10 +46,12 @@ async def test_ac01_inference_exception_posts_error_callback():
 # AC01 — error callback is POSTed to the /worker/done endpoint
 @pytest.mark.anyio
 async def test_ac01_error_callback_posted_to_worker_done_endpoint():
-    mock_checkpoint = MagicMock()
-
     with (
-        patch("parallax_worker.tasks.get_checkpoint", return_value=mock_checkpoint),
+        patch("parallax_worker.tasks.ModelManager"),
+        patch(
+            "parallax_worker.tasks._load_model_components",
+            return_value=(MagicMock(), MagicMock(), MagicMock()),
+        ),
         patch(
             "parallax_worker.tasks.encode_prompt",
             side_effect=ValueError("bad prompt"),
@@ -70,10 +74,12 @@ async def test_ac01_error_callback_posted_to_worker_done_endpoint():
 # AC04 — no silent hang: callback always sent; if callback also fails, function still returns
 @pytest.mark.anyio
 async def test_ac04_no_silent_hang_even_if_error_callback_unreachable():
-    mock_checkpoint = MagicMock()
-
     with (
-        patch("parallax_worker.tasks.get_checkpoint", return_value=mock_checkpoint),
+        patch("parallax_worker.tasks.ModelManager"),
+        patch(
+            "parallax_worker.tasks._load_model_components",
+            return_value=(MagicMock(), MagicMock(), MagicMock()),
+        ),
         patch(
             "parallax_worker.tasks.encode_prompt",
             side_effect=RuntimeError("inference failed"),

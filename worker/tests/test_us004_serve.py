@@ -42,13 +42,17 @@ def test_ac01_get_assets_returns_404_for_missing_file(tmp_path):
 
 # AC02 — After saving image, worker POSTs { id, url } to /worker/done
 @pytest.mark.anyio
-async def test_ac02_callback_url_uses_worker_public_url():
-    """run_inference constructs the asset URL from WORKER_PUBLIC_URL."""
+async def test_ac02_callback_url_uses_gateway_callback_url():
+    """run_inference constructs the asset URL from GATEWAY_CALLBACK_URL."""
     mock_image = MagicMock()
     mock_post = AsyncMock(return_value=MagicMock())
 
     with (
-        patch("parallax_worker.tasks.get_checkpoint", return_value=MagicMock()),
+        patch("parallax_worker.tasks.ModelManager"),
+        patch(
+            "parallax_worker.tasks._load_model_components",
+            return_value=(MagicMock(), MagicMock(), MagicMock()),
+        ),
         patch("parallax_worker.tasks.encode_prompt", return_value=MagicMock()),
         patch("parallax_worker.tasks.empty_latent_image", return_value=MagicMock()),
         patch("parallax_worker.tasks.sample", return_value=MagicMock()),
@@ -57,7 +61,7 @@ async def test_ac02_callback_url_uses_worker_public_url():
         patch("parallax_worker.tasks.Path.mkdir"),
         patch.dict(
             "os.environ",
-            {"WORKER_PUBLIC_URL": "http://worker.internal:8000"},
+            {"GATEWAY_CALLBACK_URL": "http://gateway.internal:3000"},
         ),
     ):
         mock_client = AsyncMock()
@@ -70,17 +74,21 @@ async def test_ac02_callback_url_uses_worker_public_url():
 
     call_args = mock_post.call_args
     posted_url = call_args.kwargs["json"]["url"]
-    assert posted_url == "http://worker.internal:8000/assets/job-ac02.png"
+    assert posted_url == "http://gateway.internal:3000/outputs/job-ac02.png"
 
 
 @pytest.mark.anyio
-async def test_ac02_callback_url_defaults_to_localhost_8000():
-    """run_inference defaults WORKER_PUBLIC_URL to http://localhost:8000."""
+async def test_ac02_callback_url_defaults_to_localhost_3000():
+    """run_inference defaults GATEWAY_CALLBACK_URL to http://localhost:3000."""
     mock_image = MagicMock()
     mock_post = AsyncMock(return_value=MagicMock())
 
     with (
-        patch("parallax_worker.tasks.get_checkpoint", return_value=MagicMock()),
+        patch("parallax_worker.tasks.ModelManager"),
+        patch(
+            "parallax_worker.tasks._load_model_components",
+            return_value=(MagicMock(), MagicMock(), MagicMock()),
+        ),
         patch("parallax_worker.tasks.encode_prompt", return_value=MagicMock()),
         patch("parallax_worker.tasks.empty_latent_image", return_value=MagicMock()),
         patch("parallax_worker.tasks.sample", return_value=MagicMock()),
@@ -89,10 +97,9 @@ async def test_ac02_callback_url_defaults_to_localhost_8000():
         patch("parallax_worker.tasks.Path.mkdir"),
         patch.dict("os.environ", {}, clear=False),
     ):
-        # Remove WORKER_PUBLIC_URL to ensure default is used
         import os
 
-        env_backup = os.environ.pop("WORKER_PUBLIC_URL", None)
+        env_backup = os.environ.pop("GATEWAY_CALLBACK_URL", None)
         try:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -103,11 +110,11 @@ async def test_ac02_callback_url_defaults_to_localhost_8000():
             await run_inference(InferRequest(id="job-default", prompt="sunset"))
         finally:
             if env_backup is not None:
-                os.environ["WORKER_PUBLIC_URL"] = env_backup
+                os.environ["GATEWAY_CALLBACK_URL"] = env_backup
 
     call_args = mock_post.call_args
     posted_url = call_args.kwargs["json"]["url"]
-    assert posted_url.startswith("http://localhost:8000/assets/")
+    assert posted_url.startswith("http://localhost:3000/outputs/")
     assert "job-default.png" in posted_url
 
 

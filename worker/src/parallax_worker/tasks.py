@@ -8,12 +8,56 @@ import httpx
 from comfy_diffusion import vae_decode
 from comfy_diffusion.conditioning import encode_prompt
 from comfy_diffusion.latent import empty_latent_image
+from comfy_diffusion.models import ModelManager
 from comfy_diffusion.sampling import sample
 
 from parallax_worker.models import InferRequest
-from parallax_worker.startup import get_checkpoint
 
 logger = logging.getLogger(__name__)
+
+_SUPPORTED_ARCHITECTURES = frozenset(
+    {
+        "bundled-checkpoint",
+        "separate-diffusion-model",
+        "separate-unet-dual-clip-image-vae",
+        "separate-unet-multi-vae",
+    }
+)
+
+
+def _load_model_components(
+    manager: ModelManager, architecture: str, components: dict
+) -> tuple:
+    """Load (model, clip, vae) from ModelManager based on architecture.
+
+    Raises ValueError for unsupported architectures.
+    """
+    if architecture == "bundled-checkpoint":
+        result = manager.load_checkpoint(components["checkpoint"])
+        return result.model, result.clip, result.vae
+
+    if architecture == "separate-diffusion-model":
+        model = manager.load_unet(components["diffusion_model"])
+        vae = manager.load_vae(components["vae"])
+        clip = manager.load_clip(components["text_encoder"])
+        return model, clip, vae
+
+    if architecture == "separate-unet-dual-clip-image-vae":
+        model = manager.load_unet(components["diffusion_model"])
+        vae = manager.load_vae(components["vae"])
+        clip = manager.load_clip(components["text_encoder"], components["text_encoder2"])
+        return model, clip, vae
+
+    if architecture == "separate-unet-multi-vae":
+        model = manager.load_unet(components["diffusion_model"])
+        vae = manager.load_vae(components["vae"])
+        clip = manager.load_clip(components["text_encoder"])
+        return model, clip, vae
+
+    raise ValueError(
+        f"Unsupported architecture '{architecture}'. "
+        f"Supported: {', '.join(sorted(_SUPPORTED_ARCHITECTURES))}."
+    )
 
 
 async def run_inference(request: InferRequest) -> None:
@@ -22,12 +66,12 @@ async def run_inference(request: InferRequest) -> None:
     callback_url = f"{callback_base}/worker/done"
 
     try:
-        checkpoint = get_checkpoint()
-        model = checkpoint.model
-        clip = checkpoint.clip
-        vae = checkpoint.vae
+        models_dir = os.environ.get("MODELS_DIR", "/mnt/models/comfyui")
+        manager = ModelManager(models_dir)
+        model, clip, vae = _load_model_components(
+            manager, request.architecture, request.components
+        )
 
-        # Full pipeline using validated request parameters
         positive = encode_prompt(clip, request.prompt)
         negative = encode_prompt(clip, request.negative_prompt)
         latent = empty_latent_image(request.width, request.height)
@@ -44,7 +88,6 @@ async def run_inference(request: InferRequest) -> None:
         )
         image = vae_decode(vae, denoised)
 
-        # Save artifact to disk
         output_dir = Path(os.getenv("OUTPUT_DIR", "./outputs"))
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / f"{request.id}.png"

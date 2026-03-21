@@ -1,4 +1,4 @@
-"""US-002 acceptance: runtime bootstrap and model load at startup."""
+"""US-002 acceptance: runtime bootstrap at startup."""
 
 import sys
 from unittest.mock import MagicMock, patch
@@ -42,21 +42,10 @@ def reset_ready():
 
 def test_ac01_check_runtime_called_on_bootstrap():
     mock_check_runtime = MagicMock(return_value=_make_runtime())
-    mock_manager = MagicMock()
-    mock_manager_cls = MagicMock(return_value=mock_manager)
 
-    with (
-        patch.dict(
-            sys.modules,
-            {
-                "comfy_diffusion": MagicMock(check_runtime=mock_check_runtime),
-                "comfy_diffusion.models": MagicMock(ModelManager=mock_manager_cls),
-            },
-        ),
-        patch.dict(
-            "os.environ",
-            {"MODELS_DIR": "/models", "CHECKPOINT_FILENAME": "v1.safetensors"},
-        ),
+    with patch.dict(
+        sys.modules,
+        {"comfy_diffusion": MagicMock(check_runtime=mock_check_runtime)},
     ):
         startup_module.bootstrap()
 
@@ -74,10 +63,7 @@ def test_ac02_runtime_error_exits():
     with (
         patch.dict(
             sys.modules,
-            {
-                "comfy_diffusion": MagicMock(check_runtime=mock_check_runtime),
-                "comfy_diffusion.models": MagicMock(),
-            },
+            {"comfy_diffusion": MagicMock(check_runtime=mock_check_runtime)},
         ),
         pytest.raises(SystemExit) as exc_info,
     ):
@@ -92,121 +78,7 @@ def test_ac02_runtime_error_is_logged():
     with (
         patch.dict(
             sys.modules,
-            {
-                "comfy_diffusion": MagicMock(check_runtime=mock_check_runtime),
-                "comfy_diffusion.models": MagicMock(),
-            },
-        ),
-        patch("parallax_worker.startup.logger") as mock_logger,
-        pytest.raises(SystemExit),
-    ):
-        startup_module.bootstrap()
-
-    mock_logger.error.assert_called_once()
-
-
-# ---------------------------------------------------------------------------
-# AC03 — ModelManager instantiated with MODELS_DIR; load_checkpoint called
-# ---------------------------------------------------------------------------
-
-
-def test_ac03_model_manager_instantiated_with_models_dir():
-    mock_manager = MagicMock()
-    mock_manager_cls = MagicMock(return_value=mock_manager)
-
-    with (
-        patch.dict(
-            sys.modules,
-            {
-                "comfy_diffusion": MagicMock(
-                    check_runtime=MagicMock(return_value=_make_runtime())
-                ),
-                "comfy_diffusion.models": MagicMock(ModelManager=mock_manager_cls),
-            },
-        ),
-        patch.dict(
-            "os.environ",
-            {"MODELS_DIR": "/my/models", "CHECKPOINT_FILENAME": "ckpt.safetensors"},
-        ),
-    ):
-        startup_module.bootstrap()
-
-    mock_manager_cls.assert_called_once_with("/my/models")
-
-
-def test_ac03_load_checkpoint_called_once_with_filename():
-    mock_manager = MagicMock()
-    mock_manager_cls = MagicMock(return_value=mock_manager)
-
-    with (
-        patch.dict(
-            sys.modules,
-            {
-                "comfy_diffusion": MagicMock(
-                    check_runtime=MagicMock(return_value=_make_runtime())
-                ),
-                "comfy_diffusion.models": MagicMock(ModelManager=mock_manager_cls),
-            },
-        ),
-        patch.dict(
-            "os.environ",
-            {"MODELS_DIR": "/my/models", "CHECKPOINT_FILENAME": "ckpt.safetensors"},
-        ),
-    ):
-        startup_module.bootstrap()
-
-    mock_manager.load_checkpoint.assert_called_once_with("ckpt.safetensors")
-
-
-# ---------------------------------------------------------------------------
-# AC04 — load_checkpoint failure → logged + sys.exit(non-zero)
-# ---------------------------------------------------------------------------
-
-
-def test_ac04_checkpoint_not_found_exits():
-    mock_manager = MagicMock()
-    mock_manager.load_checkpoint.side_effect = FileNotFoundError("file not found")
-    mock_manager_cls = MagicMock(return_value=mock_manager)
-
-    with (
-        patch.dict(
-            sys.modules,
-            {
-                "comfy_diffusion": MagicMock(
-                    check_runtime=MagicMock(return_value=_make_runtime())
-                ),
-                "comfy_diffusion.models": MagicMock(ModelManager=mock_manager_cls),
-            },
-        ),
-        patch.dict(
-            "os.environ",
-            {"MODELS_DIR": "/my/models", "CHECKPOINT_FILENAME": "missing.safetensors"},
-        ),
-        pytest.raises(SystemExit) as exc_info,
-    ):
-        startup_module.bootstrap()
-
-    assert exc_info.value.code != 0
-
-
-def test_ac04_checkpoint_failure_is_logged():
-    mock_manager = MagicMock()
-    mock_manager.load_checkpoint.side_effect = RuntimeError("corrupt checkpoint")
-    mock_manager_cls = MagicMock(return_value=mock_manager)
-
-    with (
-        patch.dict(
-            sys.modules,
-            {
-                "comfy_diffusion": MagicMock(
-                    check_runtime=MagicMock(return_value=_make_runtime())
-                ),
-                "comfy_diffusion.models": MagicMock(ModelManager=mock_manager_cls),
-            },
-        ),
-        patch.dict(
-            "os.environ",
-            {"MODELS_DIR": "/my/models", "CHECKPOINT_FILENAME": "bad.safetensors"},
+            {"comfy_diffusion": MagicMock(check_runtime=mock_check_runtime)},
         ),
         patch("parallax_worker.startup.logger") as mock_logger,
         pytest.raises(SystemExit),
@@ -244,9 +116,6 @@ def test_ac05_lifespan_triggers_bootstrap_and_health_returns_200():
     """End-to-end: lifespan runs bootstrap, then health returns 200."""
     from parallax_worker.main import app
 
-    mock_manager = MagicMock()
-    mock_manager_cls = MagicMock(return_value=mock_manager)
-
     with (
         patch.dict(
             sys.modules,
@@ -254,12 +123,7 @@ def test_ac05_lifespan_triggers_bootstrap_and_health_returns_200():
                 "comfy_diffusion": MagicMock(
                     check_runtime=MagicMock(return_value=_make_runtime())
                 ),
-                "comfy_diffusion.models": MagicMock(ModelManager=mock_manager_cls),
             },
-        ),
-        patch.dict(
-            "os.environ",
-            {"MODELS_DIR": "/models", "CHECKPOINT_FILENAME": "v1.safetensors"},
         ),
         TestClient(app) as client,
     ):

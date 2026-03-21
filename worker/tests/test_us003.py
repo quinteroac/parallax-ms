@@ -44,6 +44,7 @@ async def test_ac01_full_pipeline_runs_in_order():
     mock_encode = MagicMock(side_effect=track("encode_prompt"))
     mock_latent = MagicMock(side_effect=track("empty_latent_image"))
     mock_sample = MagicMock(side_effect=track("sample"))
+
     def _vae_decode(*a, **kw):
         call_order.append("vae_decode")
         return mock_image
@@ -54,7 +55,11 @@ async def test_ac01_full_pipeline_runs_in_order():
 
     with tempfile.TemporaryDirectory() as tmp:
         with (
-            patch("parallax_worker.tasks.get_checkpoint", return_value=checkpoint),
+            patch("parallax_worker.tasks.ModelManager"),
+            patch(
+                "parallax_worker.tasks._load_model_components",
+                return_value=(checkpoint.model, checkpoint.clip, checkpoint.vae),
+            ),
             patch("parallax_worker.tasks.encode_prompt", mock_encode),
             patch("parallax_worker.tasks.empty_latent_image", mock_latent),
             patch("parallax_worker.tasks.sample", mock_sample),
@@ -85,7 +90,11 @@ async def test_ac01_encode_prompt_called_for_positive_and_negative():
 
     with tempfile.TemporaryDirectory() as tmp:
         with (
-            patch("parallax_worker.tasks.get_checkpoint", return_value=checkpoint),
+            patch("parallax_worker.tasks.ModelManager"),
+            patch(
+                "parallax_worker.tasks._load_model_components",
+                return_value=(checkpoint.model, checkpoint.clip, checkpoint.vae),
+            ),
             patch("parallax_worker.tasks.encode_prompt", mock_encode),
             patch("parallax_worker.tasks.empty_latent_image", return_value=MagicMock()),
             patch("parallax_worker.tasks.sample", return_value=MagicMock()),
@@ -131,7 +140,11 @@ async def test_ac02_sample_called_with_request_parameters():
 
     with tempfile.TemporaryDirectory() as tmp:
         with (
-            patch("parallax_worker.tasks.get_checkpoint", return_value=checkpoint),
+            patch("parallax_worker.tasks.ModelManager"),
+            patch(
+                "parallax_worker.tasks._load_model_components",
+                return_value=(checkpoint.model, checkpoint.clip, checkpoint.vae),
+            ),
             patch("parallax_worker.tasks.encode_prompt", return_value=MagicMock()),
             patch("parallax_worker.tasks.empty_latent_image", return_value=MagicMock()),
             patch("parallax_worker.tasks.sample", mock_sample),
@@ -172,7 +185,11 @@ async def test_ac03_output_file_exists_after_task():
 
     with tempfile.TemporaryDirectory() as tmp:
         with (
-            patch("parallax_worker.tasks.get_checkpoint", return_value=checkpoint),
+            patch("parallax_worker.tasks.ModelManager"),
+            patch(
+                "parallax_worker.tasks._load_model_components",
+                return_value=(checkpoint.model, checkpoint.clip, checkpoint.vae),
+            ),
             patch("parallax_worker.tasks.encode_prompt", return_value=MagicMock()),
             patch("parallax_worker.tasks.empty_latent_image", return_value=MagicMock()),
             patch("parallax_worker.tasks.sample", return_value=MagicMock()),
@@ -203,7 +220,11 @@ async def test_ac03_output_dir_is_created_if_missing():
     with tempfile.TemporaryDirectory() as tmp:
         nested = str(Path(tmp) / "deep" / "nested" / "dir")
         with (
-            patch("parallax_worker.tasks.get_checkpoint", return_value=checkpoint),
+            patch("parallax_worker.tasks.ModelManager"),
+            patch(
+                "parallax_worker.tasks._load_model_components",
+                return_value=(checkpoint.model, checkpoint.clip, checkpoint.vae),
+            ),
             patch("parallax_worker.tasks.encode_prompt", return_value=MagicMock()),
             patch("parallax_worker.tasks.empty_latent_image", return_value=MagicMock()),
             patch("parallax_worker.tasks.sample", return_value=MagicMock()),

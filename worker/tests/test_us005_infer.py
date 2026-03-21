@@ -44,13 +44,15 @@ def test_ac02_post_infer_returns_202_accepted():
 # AC03 — Background task POSTs {id, url} to gateway callback
 @pytest.mark.anyio
 async def test_ac03_background_task_posts_to_gateway():
-    mock_response = MagicMock()
-    mock_post = AsyncMock(return_value=mock_response)
-    mock_checkpoint = MagicMock()
     mock_image = MagicMock()
+    mock_post = AsyncMock(return_value=MagicMock())
 
     with (
-        patch("parallax_worker.tasks.get_checkpoint", return_value=mock_checkpoint),
+        patch("parallax_worker.tasks.ModelManager"),
+        patch(
+            "parallax_worker.tasks._load_model_components",
+            return_value=(MagicMock(), MagicMock(), MagicMock()),
+        ),
         patch("parallax_worker.tasks.encode_prompt", return_value=MagicMock()),
         patch("parallax_worker.tasks.empty_latent_image", return_value=MagicMock()),
         patch("parallax_worker.tasks.sample", return_value=MagicMock()),
@@ -76,11 +78,14 @@ async def test_ac03_background_task_posts_to_gateway():
 # AC04 — Gateway callback unreachable: logs error, does not crash
 @pytest.mark.anyio
 async def test_ac04_unreachable_gateway_logs_error_no_crash():
-    mock_checkpoint = MagicMock()
     mock_image = MagicMock()
 
     with (
-        patch("parallax_worker.tasks.get_checkpoint", return_value=mock_checkpoint),
+        patch("parallax_worker.tasks.ModelManager"),
+        patch(
+            "parallax_worker.tasks._load_model_components",
+            return_value=(MagicMock(), MagicMock(), MagicMock()),
+        ),
         patch("parallax_worker.tasks.encode_prompt", return_value=MagicMock()),
         patch("parallax_worker.tasks.empty_latent_image", return_value=MagicMock()),
         patch("parallax_worker.tasks.sample", return_value=MagicMock()),
