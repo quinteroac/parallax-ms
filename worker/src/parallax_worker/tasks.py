@@ -65,17 +65,30 @@ def _load_model_components(
 
 
 def _decode_source_image(source_image: str) -> PILImage.Image:
-    """Decode a base64-encoded PNG or JPG string to a PIL Image.
+    """Decode a base64-encoded image string to a PIL Image.
 
+    Accepts pure base64 or a data URL (data:<mime>;base64,<data>).
     Raises ValueError if decoding fails or the result is not a valid image.
     """
+    # Strip data URL prefix if present (e.g. "data:image/png;base64,")
+    if "," in source_image and source_image.lstrip().startswith("data:"):
+        source_image = source_image.split(",", 1)[1]
+
+    source_image = source_image.strip()
+    if not source_image:
+        raise ValueError("source_image is empty")
+
     try:
-        data = base64.b64decode(source_image, validate=True)
+        data = base64.b64decode(source_image)
     except Exception as exc:
         raise ValueError(f"source_image is not valid base64: {exc}") from exc
 
+    if not data:
+        raise ValueError("source_image decoded to empty bytes")
+
     try:
-        image = PILImage.open(io.BytesIO(data))
+        buf = io.BytesIO(data)
+        image = PILImage.open(buf)
         image.load()
         return image
     except Exception as exc:
@@ -107,9 +120,13 @@ async def run_inference(request: InferRequest) -> None:
             pil_image = _decode_source_image(request.source_image)
             latent = vae_encode(vae, pil_image)
             denoise = request.denoise_strength
-        else:
+        elif request.modality == "txt2img":
             latent = empty_latent_image(request.width, request.height)
             denoise = 1.0
+        else:
+            raise ValueError(
+                f"Unsupported modality '{request.modality}'. Supported: txt2img, img2img."
+            )
 
         denoised = sample(
             model,

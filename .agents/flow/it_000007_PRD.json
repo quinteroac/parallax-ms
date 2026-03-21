@@ -1,0 +1,163 @@
+{
+  "goals": [
+    "Deliver end-to-end `upscale` inference through the existing job + callback + SSE pipeline.",
+    "Add at least one upscaler model to `models.config.json` so discovery and validation work without custom configuration.",
+    "Extend the playground to let users submit upscale jobs and see results in the browser."
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Model config includes an upscaler entry",
+      "description": "As a client, I want `GET /v1/models` to return at least one model with `type: \"upscalers\"` and `modality: \"upscale\"` so that I can discover available upscalers before submitting a job.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-001-AC01",
+          "text": "`models.config.json` contains at least one entry with `\"type\": \"upscalers\"` and `\"modalities\"` including `\"upscale\"`."
+        },
+        {
+          "id": "US-001-AC02",
+          "text": "`GET /v1/models` response groups that entry under the `\"upscalers\"` key."
+        },
+        {
+          "id": "US-001-AC03",
+          "text": "`GET /v1/models/:id` returns the upscaler entry correctly."
+        },
+        {
+          "id": "US-001-AC04",
+          "text": "Typecheck / lint passes."
+        }
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Gateway accepts and validates upscale jobs",
+      "description": "As a client, I want `POST /v1/jobs` to accept `{ modelId, modality: \"upscale\", params: { source_image } }` so that I can submit upscale jobs through the standard job API.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-002-AC01",
+          "text": "`POST /v1/jobs` with `modality: \"upscale\"` and a valid upscaler `modelId` returns `201` with `{ jobId }`."
+        },
+        {
+          "id": "US-002-AC02",
+          "text": "If the selected model does not support `\"upscale\"` in its `modalities`, the gateway returns `400` with a clear error message."
+        },
+        {
+          "id": "US-002-AC03",
+          "text": "If `source_image` is missing from `params`, the gateway returns `400` with a clear error message."
+        },
+        {
+          "id": "US-002-AC04",
+          "text": "`architecture` and `components` from the model config are forwarded to the worker `POST /infer` body, along with `modality: \"upscale\"` and `source_image`."
+        },
+        {
+          "id": "US-002-AC05",
+          "text": "Typecheck / lint passes."
+        }
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Worker runs upscale inference end-to-end",
+      "description": "As a system, I want the worker to execute real upscale inference via `comfy_diffusion` for an `upscale` modality request so that a higher-resolution output is written to disk and the gateway is notified via callback.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-003-AC01",
+          "text": "Worker `POST /infer` with `modality: \"upscale\"` and a valid base64 `source_image` responds `202 Accepted` and starts inference in a background task."
+        },
+        {
+          "id": "US-003-AC02",
+          "text": "Inference calls the appropriate `comfy_diffusion` upscale API (e.g. `upscale_image`) with the decoded source image and the loaded upscaler model."
+        },
+        {
+          "id": "US-003-AC03",
+          "text": "Output image is written to `OUTPUT_DIR/<jobId>.png`."
+        },
+        {
+          "id": "US-003-AC04",
+          "text": "On success, worker POSTs `{ id, url }` to `GATEWAY_CALLBACK_URL/worker/done`; gateway updates job to `succeeded` and SSE fires."
+        },
+        {
+          "id": "US-003-AC05",
+          "text": "On failure (invalid image, unsupported model, inference error), worker POSTs `{ id, error }` to the callback; gateway updates job to `failed` and SSE fires."
+        },
+        {
+          "id": "US-003-AC06",
+          "text": "`InferRequest` Pydantic model accepts `source_image` (required for `upscale`)."
+        },
+        {
+          "id": "US-003-AC07",
+          "text": "Typecheck / lint passes."
+        }
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Playground supports upscale mode",
+      "description": "As a user, I want the playground to include an \"upscale\" mode toggle option so that I can submit an upscale job, watch it complete via SSE, and see the result image — all without leaving the browser.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-004-AC01",
+          "text": "Mode toggle adds a third option: `txt2img | img2img | upscale`."
+        },
+        {
+          "id": "US-004-AC02",
+          "text": "When `upscale` is selected: source image file input is shown; prompt, negative prompt, width, height, steps, CFG, seed, and denoise strength fields are hidden."
+        },
+        {
+          "id": "US-004-AC03",
+          "text": "When `upscale` is selected, the model selector filters to show only models whose `modalities` include `\"upscale\"` (or shows all if filtering is not feasible, with an explanatory note)."
+        },
+        {
+          "id": "US-004-AC04",
+          "text": "Submitting an upscale job POSTs `{ modelId, modality: \"upscale\", params: { source_image } }` to `POST /v1/jobs`."
+        },
+        {
+          "id": "US-004-AC05",
+          "text": "On job completion, the result image is displayed in the browser."
+        },
+        {
+          "id": "US-004-AC06",
+          "text": "On job failure, the error message is displayed."
+        },
+        {
+          "id": "US-004-AC07",
+          "text": "Visually verified in browser: upscale mode renders correctly, result image appears after successful job."
+        },
+        {
+          "id": "US-004-AC08",
+          "text": "Typecheck / lint passes."
+        }
+      ]
+    }
+  ],
+  "functionalRequirements": [
+    {
+      "id": "FR-1",
+      "description": "** `models.config.json` schema (`ModelConfigSchema`) must accept `\"upscale\"` as a valid modality value; no schema changes should break existing `txt2img`/`img2img` entries."
+    },
+    {
+      "id": "FR-2",
+      "description": "** Gateway job-creation validation must reject `modality: \"upscale\"` when the selected model's `modalities` array does not include `\"upscale\"`."
+    },
+    {
+      "id": "FR-3",
+      "description": "** Gateway job-creation validation must require `params.source_image` (non-empty string) when `modality` is `\"upscale\"`; return `400` otherwise."
+    },
+    {
+      "id": "FR-4",
+      "description": "** The worker `InferRequest` Pydantic model must accept `modality: \"upscale\"` without throwing a validation error."
+    },
+    {
+      "id": "FR-5",
+      "description": "** Worker `run_inference` must branch on `modality == \"upscale\"`, decode `source_image`, call the `comfy_diffusion` upscale API, save the output, and POST the callback — mirroring the existing `txt2img`/`img2img` error-propagation pattern."
+    },
+    {
+      "id": "FR-6",
+      "description": "** Only models with `\"upscale\"` in their `modalities` list may be forwarded to the worker with `modality: \"upscale\"`; mismatch is caught at gateway layer before any queue dispatch."
+    },
+    {
+      "id": "FR-7",
+      "description": "** Automated tests in `gateway/test/` must cover the upscale happy path and the two new `400` validation error cases (model does not support upscale; missing `source_image`)."
+    }
+  ]
+}

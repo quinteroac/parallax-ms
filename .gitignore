@@ -1,3 +1,4 @@
+outputs/
 # Dependencies
 node_modules/
 .venv/

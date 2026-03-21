@@ -37,7 +37,8 @@
 - **Approach:** **Code first, tests after** for new code unless a story mandates TDD; add automated tests for **critical paths** (health, job lifecycle, inference) as packages gain structure. PRD iteration **000001** requires **typecheck/lint** where tooling exists.
 - **Runner (planned):** **Vitest** (or Bun’s test runner if adopted in the gateway package) for TypeScript; **pytest** for Python when test layout is added.
 - **Coverage targets:** None mandated for Phase 1; raise thresholds in later phases when agreed.
-- **Test location convention:** Co-located `*.test.ts` / `*.spec.ts` or `tests/` per package convention once scaffolded; Python `tests/` mirroring package layout under uv.
+- **Test location convention:** Gateway tests live in `gateway/test/` (not co-located with source). File names are feature-based, not story-based — e.g. `jobs-create.test.ts`, `worker-callback.test.ts`, not `us001.test.ts` or `it000006-us004.test.ts`. Tests that only assert README/docs content (not runtime behaviour) are excluded. Python `tests/` mirroring package layout under uv.
+- **Merging:** Multiple files covering the same endpoint or feature are merged into a single file. Each merged file carries at most one typecheck/lint test at the end.
 
 ## Product Architecture
 
@@ -59,4 +60,5 @@
 - **Iteration 000002:** Async job lifecycle — `POST /v1/jobs` creates a job and enqueues it; `GET /v1/jobs/:id` returns job state; `GET /v1/jobs/:id/events` delivers the terminal event via SSE; `/worker/done` callback updates job to `succeeded`/`failed` and fires SSE.
 - **Iteration 000003:** OpenAPI spec and Swagger UI at `GET /swagger` via `@elysiajs/swagger`; all routes carry `detail.summary` annotations.
 - **Iteration 000004:** `models.config.json` schema (`ModelConfigSchema` via Zod), file placement at repo root, `loadModels()` / `findModelById()` utilities, `MODELS_CONFIG_PATH` env override; `GET /v1/models` and `GET /v1/models/:id` endpoints; job creation validates `modelId` and `modality` against the config.
-- **Iteration 000005 (current):** README updated with full API reference section covering `POST /v1/jobs`, `GET /v1/jobs/:id`, `GET /v1/jobs/:id/events`, `GET /v1/models`, `GET /v1/models/:id`, and `GET /swagger`; job status lifecycle and conditional fields (`url`, `error`) documented; PROJECT_CONTEXT Implemented Capabilities section brought up to date.
+- **Iteration 000005:** README updated with full API reference section covering `POST /v1/jobs`, `GET /v1/jobs/:id`, `GET /v1/jobs/:id/events`, `GET /v1/models`, `GET /v1/models/:id`, and `GET /swagger`; job status lifecycle and conditional fields (`url`, `error`) documented; PROJECT_CONTEXT Implemented Capabilities section brought up to date.
+- **Iteration 000006 (current):** Worker runs real inference (txt2img and img2img) for all 4 model architectures via `comfy_diffusion`; gateway forwards `architecture`, `components`, `modality`, and flattened params to `/infer`; playground extended with model selector and img2img mode; gateway tests reorganised into `gateway/test/` with feature-based file names (10 files, docs-only tests dropped).

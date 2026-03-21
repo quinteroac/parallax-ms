@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { app } from "./index";
+import { app } from "../src/index";
 
 describe("US-003 OpenAPI spec and Swagger UI at /swagger", () => {
   test("US-003-AC01: GET /swagger returns HTTP 200 with HTML Swagger UI page", async () => {

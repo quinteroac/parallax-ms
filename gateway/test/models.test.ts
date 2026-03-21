@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { Elysia } from "elysia";
-import { app } from "./index";
-import type { ModelEntry } from "./model-store";
-import { createModelsRoutes } from "./routes/models";
+import { app } from "../src/index";
+import type { ModelEntry } from "../src/model-store";
+import { createModelsRoutes } from "../src/routes/models";
 
 describe("US-001 GET /v1/models", () => {
   // AC01: returns 200 with all five category keys as arrays

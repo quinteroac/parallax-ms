@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { app } from "./index";
-import { clearJobs, createJob, updateJob } from "./job-store";
-import { clearListeners } from "./sse-emitter";
+import { app } from "../src/index";
+import { clearJobs, createJob, updateJob } from "../src/job-store";
+import { clearListeners } from "../src/sse-emitter";
 
 const BASE = "http://localhost";
 const gatewayRoot = join(import.meta.dir, "..");

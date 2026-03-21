@@ -77,6 +77,12 @@ const html = `<!DOCTYPE html>
       gap: 1rem;
     }
 
+    .row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+    }
+
     .mode-toggle {
       display: flex;
       gap: 0;
@@ -234,15 +240,15 @@ const html = `<!DOCTYPE html>
       </select>
     </label>
 
-    <div>
-      <div style="font-size:0.85rem;font-weight:500;color:#a0a0b0;margin-bottom:0.35rem;">Mode</div>
-      <div class="mode-toggle" id="mode-toggle">
+    <fieldset style="border:none;padding:0;margin:0;">
+      <legend style="font-size:0.85rem;font-weight:500;color:#a0a0b0;margin-bottom:0.35rem;padding:0;">Mode</legend>
+      <div class="mode-toggle" id="mode-toggle" role="radiogroup" aria-label="Inference mode">
         <input type="radio" id="mode-txt2img" name="modality" value="txt2img" checked />
         <label for="mode-txt2img">txt2img</label>
         <input type="radio" id="mode-img2img" name="modality" value="img2img" />
         <label for="mode-img2img">img2img</label>
       </div>
-    </div>
+    </fieldset>
 
     <label>
       Prompt
@@ -280,10 +286,14 @@ const html = `<!DOCTYPE html>
       </label>
     </div>
 
-    <div class="row">
+    <div class="row-3">
       <label>
         Steps
         <input type="number" id="steps" name="steps" value="20" min="1" max="150" />
+      </label>
+      <label>
+        CFG
+        <input type="number" id="cfg" name="cfg" value="7" min="1" max="30" step="0.5" />
       </label>
       <label>
         Seed
@@ -402,9 +412,10 @@ const html = `<!DOCTYPE html>
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
-          // result is "data:<mime>;base64,<data>" — strip the prefix
+          // result is "data:<mime>;base64,<data>" — strip everything up to and including the first comma
           const result = reader.result;
-          const base64 = result.split(',')[1];
+          const commaIdx = result.indexOf(',');
+          const base64 = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
           resolve(base64);
         };
         reader.onerror = () => reject(new Error('Failed to read image file'));
@@ -423,6 +434,7 @@ const html = `<!DOCTYPE html>
       const width = parseInt(document.getElementById('width').value, 10);
       const height = parseInt(document.getElementById('height').value, 10);
       const steps = parseInt(document.getElementById('steps').value, 10);
+      const cfg = parseFloat(document.getElementById('cfg').value);
       const seed = parseInt(document.getElementById('seed').value, 10);
 
       if (!modelId) {
@@ -434,7 +446,7 @@ const html = `<!DOCTYPE html>
 
       let jobId;
       try {
-        const params = { prompt, width, height, steps, seed };
+        const params = { prompt, width, height, steps, cfg, seed };
         if (negativePrompt) params.negative_prompt = negativePrompt;
 
         if (modality === 'img2img') {
@@ -496,6 +508,7 @@ const html = `<!DOCTYPE html>
       };
 
       es.onerror = () => {
+        if (!activeEventSource) return; // onmessage already handled the terminal event
         closeEventSource();
         hideLoading();
         showError('Lost connection to the server while waiting for the job.');

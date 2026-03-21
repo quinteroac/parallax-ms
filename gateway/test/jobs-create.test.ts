@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Elysia } from "elysia";
-import { clearJobs, getJob } from "./job-store";
-import type { ModelEntry, ModelsResponse } from "./model-store";
-import { createJobsRoutes } from "./routes/jobs";
+import { clearJobs, getJob } from "../src/job-store";
+import type { ModelEntry, ModelsResponse } from "../src/model-store";
+import { createJobsRoutes } from "../src/routes/jobs";
 
 const BASE = "http://localhost";
 

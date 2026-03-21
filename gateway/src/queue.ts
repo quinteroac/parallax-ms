@@ -9,7 +9,7 @@ export const queue = new PQueue({ concurrency: 1 });
 async function dispatchJob(job: Job): Promise<void> {
   const workerBaseUrl = process.env.WORKER_BASE_URL ?? "http://localhost:8000";
 
-  const body: Record<string, unknown> = { id: job.id, type: job.type, params: job.params };
+  const body: Record<string, unknown> = { id: job.id, ...job.params };
 
   if (job.modelId) {
     let models;

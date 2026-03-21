@@ -3,12 +3,12 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Elysia } from "elysia";
-import { clearJobs, createJob } from "./job-store";
-import { clearListeners } from "./sse-emitter";
-import { createJobsRoutes } from "./routes/jobs";
-import { workerRoutes } from "./routes/worker";
-import { outputsRoutes } from "./routes/outputs";
-import { queue } from "./queue";
+import { clearJobs, createJob } from "../src/job-store";
+import { clearListeners } from "../src/sse-emitter";
+import { createJobsRoutes } from "../src/routes/jobs";
+import { workerRoutes } from "../src/routes/worker";
+import { outputsRoutes } from "../src/routes/outputs";
+import { queue } from "../src/queue";
 
 const BASE = "http://localhost";
 const gatewayRoot = join(import.meta.dir, "..");

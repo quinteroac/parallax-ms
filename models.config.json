@@ -33,7 +33,7 @@
       "components": {
         "diffusion_model": "zImageTurboQuantized_fp8ScaledE4m3fnKJ.safetensors",
         "vae": "Z-Image_vivid_vae.safetensors",
-        "text_encoder": "qwen_3_8b_fp8mixed.safetensors"
+        "text_encoder": "qwen_3_4b.safetensors"
       }
     },
     {
@@ -46,7 +46,7 @@
       "components": {
         "diffusion_model": "z_image_bf16.safetensors",
         "vae": "Z-Image_vivid_vae.safetensors",
-        "text_encoder": "qwen_3_8b_fp8mixed.safetensors"
+        "text_encoder": "qwen_3_4b.safetensors"
       }
     },
     {
@@ -58,7 +58,7 @@
       "architecture": "separate-diffusion-model",
       "components": {
         "diffusion_model": "anima-preview.safetensors",
-        "vae": "Wan2.1_VAE_upscale2x_imageonly_real_v1.safetensors",
+        "vae": "qwen_image_vae.safetensors",
         "text_encoder": "qwen_3_06b_base.safetensors"
       }
     },
