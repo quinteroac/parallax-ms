@@ -1,5 +1,7 @@
 """Background inference task for the Parallax worker."""
 
+import base64
+import io
 import logging
 import os
 from pathlib import Path
@@ -10,6 +12,8 @@ from comfy_diffusion.conditioning import encode_prompt
 from comfy_diffusion.latent import empty_latent_image
 from comfy_diffusion.models import ModelManager
 from comfy_diffusion.sampling import sample
+from comfy_diffusion.vae import vae_encode
+from PIL import Image as PILImage
 
 from parallax_worker.models import InferRequest
 
@@ -60,8 +64,28 @@ def _load_model_components(
     )
 
 
+def _decode_source_image(source_image: str) -> PILImage.Image:
+    """Decode a base64-encoded PNG or JPG string to a PIL Image.
+
+    Raises ValueError if decoding fails or the result is not a valid image.
+    """
+    try:
+        data = base64.b64decode(source_image, validate=True)
+    except Exception as exc:
+        raise ValueError(f"source_image is not valid base64: {exc}") from exc
+
+    try:
+        image = PILImage.open(io.BytesIO(data))
+        image.load()
+        return image
+    except Exception as exc:
+        raise ValueError(
+            f"source_image could not be decoded as a valid image: {exc}"
+        ) from exc
+
+
 async def run_inference(request: InferRequest) -> None:
-    """Run txt2img inference and POST the result or error to the gateway callback."""
+    """Run txt2img or img2img inference and POST the result or error to the gateway callback."""
     callback_base = os.getenv("GATEWAY_CALLBACK_URL", "http://localhost:3000")
     callback_url = f"{callback_base}/worker/done"
 
@@ -74,7 +98,19 @@ async def run_inference(request: InferRequest) -> None:
 
         positive = encode_prompt(clip, request.prompt)
         negative = encode_prompt(clip, request.negative_prompt)
-        latent = empty_latent_image(request.width, request.height)
+
+        if request.modality == "img2img":
+            if request.source_image is None:
+                raise ValueError(
+                    "source_image is required for img2img modality but was not provided."
+                )
+            pil_image = _decode_source_image(request.source_image)
+            latent = vae_encode(vae, pil_image)
+            denoise = request.denoise_strength
+        else:
+            latent = empty_latent_image(request.width, request.height)
+            denoise = 1.0
+
         denoised = sample(
             model,
             positive,
@@ -85,6 +121,7 @@ async def run_inference(request: InferRequest) -> None:
             request.sampler_name,
             request.scheduler,
             request.seed,
+            denoise=denoise,
         )
         image = vae_decode(vae, denoised)
 

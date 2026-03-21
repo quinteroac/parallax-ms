@@ -1,6 +1,6 @@
 """Pydantic models for the Parallax worker API."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class InferRequest(BaseModel):
@@ -18,3 +18,5 @@ class InferRequest(BaseModel):
     seed: int = 0
     sampler_name: str = "euler"
     scheduler: str = "normal"
+    source_image: str | None = None
+    denoise_strength: float = Field(default=0.75, ge=0.0, le=1.0)
