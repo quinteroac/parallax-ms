@@ -31,7 +31,9 @@ def bootstrap() -> None:
 
     # AC03 / AC04 — instantiate ModelManager and load checkpoint; exit on failure
     models_dir = os.environ.get("MODELS_DIR", "/mnt/models/comfyui")
-    checkpoint_filename = os.environ.get("CHECKPOINT_FILENAME", "waiIllustriousSDXL_v160.safetensors")
+    checkpoint_filename = os.environ.get(
+        "CHECKPOINT_FILENAME", "waiIllustriousSDXL_v160.safetensors"
+    )
 
     try:
         manager = ModelManager(models_dir)

@@ -6,6 +6,10 @@ from pydantic import BaseModel
 class InferRequest(BaseModel):
     id: str
     prompt: str
+    modelId: str = ""
+    modality: str = ""
+    architecture: str = ""
+    components: dict = {}
     negative_prompt: str = ""
     width: int = 512
     height: int = 512
