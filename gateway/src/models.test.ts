@@ -145,9 +145,7 @@ describe("US-002 GET /v1/models?type=", () => {
     const res = await app.handle(new Request("http://localhost/v1/models?type=unknown"));
     expect(res.status).toBe(400);
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body.error).toBe(
-      "Invalid type. Valid values: images, video, editing, audio, upscalers",
-    );
+    expect(body.error).toBe("Invalid type. Valid values: images, video, editing, audio, upscalers");
   });
 
   test("AC03: empty string type returns 400", async () => {
@@ -170,5 +168,80 @@ describe("US-002 GET /v1/models?type=", () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.audio).toEqual([]);
     expect("images" in body).toBe(false);
+  });
+});
+
+const fullModel: ModelEntry = {
+  id: "sdxl-full",
+  name: "SDXL Full",
+  type: "images",
+  modalities: ["text-to-image"],
+  description: "Full SDXL model",
+  components: ["unet", "checkpoint", "clip", "text_encoder", "vae.image", "vae.audio"],
+};
+
+describe("US-003 GET /v1/models/:id", () => {
+  // AC01: returns 200 with the full model object when ID exists
+  test("AC01: returns HTTP 200 with full model object for a known ID", async () => {
+    const routes = createModelsRoutes(() => ({
+      images: [fullModel],
+      video: [],
+      editing: [],
+      audio: [],
+      upscalers: [],
+    }));
+    const testApp = new Elysia().use(routes);
+    const res = await testApp.handle(new Request("http://localhost/v1/models/sdxl-full"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ModelEntry;
+    expect(body.id).toBe("sdxl-full");
+    expect(body.name).toBe("SDXL Full");
+    expect(body.type).toBe("images");
+    expect(body.modalities).toEqual(["text-to-image"]);
+    expect(body.description).toBe("Full SDXL model");
+    expect(body.components).toEqual([
+      "unet",
+      "checkpoint",
+      "clip",
+      "text_encoder",
+      "vae.image",
+      "vae.audio",
+    ]);
+  });
+
+  // AC01: works for a model that exists in the real config
+  test("AC01: returns a real model from the default config", async () => {
+    const res = await app.handle(
+      new Request("http://localhost/v1/models/stable-diffusion-xl-base"),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ModelEntry;
+    expect(body.id).toBe("stable-diffusion-xl-base");
+    expect(Array.isArray(body.components)).toBe(true);
+    expect(body.components.length).toBeGreaterThan(0);
+  });
+
+  // AC02: returns 404 with { error: "Model not found" } when ID does not exist
+  test("AC02: returns HTTP 404 with error message for unknown ID", async () => {
+    const routes = createModelsRoutes(() => ({
+      images: [fullModel],
+      video: [],
+      editing: [],
+      audio: [],
+      upscalers: [],
+    }));
+    const testApp = new Elysia().use(routes);
+    const res = await testApp.handle(new Request("http://localhost/v1/models/nonexistent-model"));
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.error).toBe("Model not found");
+  });
+
+  // AC02: 404 also via the real app for an unknown ID
+  test("AC02: real app returns 404 for an unknown model ID", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models/this-does-not-exist"));
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.error).toBe("Model not found");
   });
 });

@@ -57,3 +57,12 @@ export function loadModels(configPath: string = CONFIG_PATH): ModelsResponse {
 
   return result;
 }
+
+/** Find a single model by ID across all types. Returns undefined if not found. */
+export function findModelById(models: ModelsResponse, id: string): ModelEntry | undefined {
+  for (const type of MODEL_TYPES) {
+    const found = models[type].find((m) => m.id === id);
+    if (found) return found;
+  }
+  return undefined;
+}
