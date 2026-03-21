@@ -148,6 +148,16 @@ const html = `<!DOCTYPE html>
       text-align: right;
     }
 
+    #generation-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    #generation-fields.hidden {
+      display: none;
+    }
+
     .img2img-fields {
       display: none;
       flex-direction: column;
@@ -155,6 +165,16 @@ const html = `<!DOCTYPE html>
     }
 
     .img2img-fields.visible {
+      display: flex;
+    }
+
+    .upscale-fields {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .upscale-fields.visible {
       display: flex;
     }
 
@@ -247,57 +267,68 @@ const html = `<!DOCTYPE html>
         <label for="mode-txt2img">txt2img</label>
         <input type="radio" id="mode-img2img" name="modality" value="img2img" />
         <label for="mode-img2img">img2img</label>
+        <input type="radio" id="mode-upscale" name="modality" value="upscale" />
+        <label for="mode-upscale">upscale</label>
       </div>
     </fieldset>
 
-    <label>
-      Prompt
-      <input type="text" id="prompt" name="prompt" placeholder="a serene mountain lake at sunset" required />
-    </label>
+    <div id="generation-fields">
+      <label>
+        Prompt
+        <input type="text" id="prompt" name="prompt" placeholder="a serene mountain lake at sunset" required />
+      </label>
 
-    <label>
-      Negative prompt <span style="font-weight:400;color:#666">(optional)</span>
-      <input type="text" id="negative_prompt" name="negative_prompt" placeholder="blurry, low quality" />
-    </label>
+      <label>
+        Negative prompt <span style="font-weight:400;color:#666">(optional)</span>
+        <input type="text" id="negative_prompt" name="negative_prompt" placeholder="blurry, low quality" />
+      </label>
 
-    <div class="img2img-fields" id="img2img-fields">
+      <div class="img2img-fields" id="img2img-fields">
+        <label>
+          Source image
+          <input type="file" id="source_image" name="source_image" accept="image/*" />
+        </label>
+
+        <label>
+          Denoise strength
+          <div class="range-row">
+            <input type="range" id="denoise_strength" name="denoise_strength" min="0" max="1" step="0.05" value="0.75" />
+            <span class="range-value" id="denoise-value">0.75</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="row">
+        <label>
+          Width
+          <input type="number" id="width" name="width" value="1024" min="64" max="2048" step="64" />
+        </label>
+        <label>
+          Height
+          <input type="number" id="height" name="height" value="1024" min="64" max="2048" step="64" />
+        </label>
+      </div>
+
+      <div class="row-3">
+        <label>
+          Steps
+          <input type="number" id="steps" name="steps" value="20" min="1" max="150" />
+        </label>
+        <label>
+          CFG
+          <input type="number" id="cfg" name="cfg" value="7" min="1" max="30" step="0.5" />
+        </label>
+        <label>
+          Seed
+          <input type="number" id="seed" name="seed" value="0" min="0" />
+        </label>
+      </div>
+    </div>
+
+    <div class="upscale-fields" id="upscale-fields">
       <label>
         Source image
-        <input type="file" id="source_image" name="source_image" accept="image/*" />
-      </label>
-
-      <label>
-        Denoise strength
-        <div class="range-row">
-          <input type="range" id="denoise_strength" name="denoise_strength" min="0" max="1" step="0.05" value="0.75" />
-          <span class="range-value" id="denoise-value">0.75</span>
-        </div>
-      </label>
-    </div>
-
-    <div class="row">
-      <label>
-        Width
-        <input type="number" id="width" name="width" value="1024" min="64" max="2048" step="64" />
-      </label>
-      <label>
-        Height
-        <input type="number" id="height" name="height" value="1024" min="64" max="2048" step="64" />
-      </label>
-    </div>
-
-    <div class="row-3">
-      <label>
-        Steps
-        <input type="number" id="steps" name="steps" value="20" min="1" max="150" />
-      </label>
-      <label>
-        CFG
-        <input type="number" id="cfg" name="cfg" value="7" min="1" max="30" step="0.5" />
-      </label>
-      <label>
-        Seed
-        <input type="number" id="seed" name="seed" value="0" min="0" />
+        <input type="file" id="upscale_source_image" name="upscale_source_image" accept="image/*" />
       </label>
     </div>
 
@@ -322,10 +353,35 @@ const html = `<!DOCTYPE html>
     const resultImg = document.getElementById('result');
     const modelSelect = document.getElementById('model-select');
     const img2imgFields = document.getElementById('img2img-fields');
+    const upscaleFields = document.getElementById('upscale-fields');
+    const generationFields = document.getElementById('generation-fields');
     const denoiseInput = document.getElementById('denoise_strength');
     const denoiseValue = document.getElementById('denoise-value');
 
     let activeEventSource = null;
+    let allModels = [];
+
+    function populateModelSelect(modality) {
+      const filtered = modality === 'upscale'
+        ? allModels.filter((m) => m.modalities && m.modalities.includes('upscale'))
+        : allModels;
+      modelSelect.innerHTML = '';
+      if (filtered.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.disabled = true;
+        opt.selected = true;
+        opt.textContent = allModels.length === 0 ? 'No models available' : 'No upscale models available';
+        modelSelect.appendChild(opt);
+      } else {
+        filtered.forEach((m) => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.name;
+          modelSelect.appendChild(opt);
+        });
+      }
+    }
 
     // Populate model selector on load
     (async () => {
@@ -333,23 +389,9 @@ const html = `<!DOCTYPE html>
         const res = await fetch('/v1/models');
         if (!res.ok) throw new Error('Failed to fetch models (' + res.status + ')');
         const data = await res.json();
-        const allModels = Object.values(data).flat();
-        modelSelect.innerHTML = '';
-        if (allModels.length === 0) {
-          const opt = document.createElement('option');
-          opt.value = '';
-          opt.disabled = true;
-          opt.selected = true;
-          opt.textContent = 'No models available';
-          modelSelect.appendChild(opt);
-        } else {
-          allModels.forEach((m) => {
-            const opt = document.createElement('option');
-            opt.value = m.id;
-            opt.textContent = m.name;
-            modelSelect.appendChild(opt);
-          });
-        }
+        allModels = Object.values(data).flat();
+        const currentModality = document.querySelector('input[name="modality"]:checked').value;
+        populateModelSelect(currentModality);
       } catch (err) {
         modelSelect.innerHTML = '';
         const opt = document.createElement('option');
@@ -361,15 +403,30 @@ const html = `<!DOCTYPE html>
       }
     })();
 
-    // Show/hide img2img fields based on mode
+    // Show/hide fields based on mode
     document.querySelectorAll('input[name="modality"]').forEach((radio) => {
       radio.addEventListener('change', () => {
-        const isImg2img = document.getElementById('mode-img2img').checked;
+        const modality = document.querySelector('input[name="modality"]:checked').value;
+        const isImg2img = modality === 'img2img';
+        const isUpscale = modality === 'upscale';
+
+        if (isUpscale) {
+          generationFields.classList.add('hidden');
+          upscaleFields.classList.add('visible');
+          submitBtn.textContent = 'Upscale';
+        } else {
+          generationFields.classList.remove('hidden');
+          upscaleFields.classList.remove('visible');
+          submitBtn.textContent = 'Generate';
+        }
+
         if (isImg2img) {
           img2imgFields.classList.add('visible');
         } else {
           img2imgFields.classList.remove('visible');
         }
+
+        populateModelSelect(modality);
       });
     });
 
@@ -446,20 +503,34 @@ const html = `<!DOCTYPE html>
 
       let jobId;
       try {
-        const params = { prompt, width, height, steps, cfg, seed };
-        if (negativePrompt) params.negative_prompt = negativePrompt;
+        let params;
 
-        if (modality === 'img2img') {
-          const fileInput = document.getElementById('source_image');
+        if (modality === 'upscale') {
+          const fileInput = document.getElementById('upscale_source_image');
           const file = fileInput.files && fileInput.files[0];
           if (!file) {
             hideLoading();
-            showError('Please select a source image for img2img.');
+            showError('Please select a source image for upscale.');
             return;
           }
           const base64 = await readFileAsBase64(file);
-          params.source_image = base64;
-          params.denoise_strength = parseFloat(denoiseInput.value);
+          params = { source_image: base64 };
+        } else {
+          params = { prompt, width, height, steps, cfg, seed };
+          if (negativePrompt) params.negative_prompt = negativePrompt;
+
+          if (modality === 'img2img') {
+            const fileInput = document.getElementById('source_image');
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) {
+              hideLoading();
+              showError('Please select a source image for img2img.');
+              return;
+            }
+            const base64 = await readFileAsBase64(file);
+            params.source_image = base64;
+            params.denoise_strength = parseFloat(denoiseInput.value);
+          }
         }
 
         const res = await fetch('/v1/jobs', {

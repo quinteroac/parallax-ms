@@ -232,6 +232,109 @@ describe("US-005 Playground supports model selection and img2img", () => {
   });
 
   // ---------- typecheck / lint ----------
+});
+
+// ---------- upscale mode ----------
+
+describe("US-004 Playground supports upscale mode", () => {
+  // ---------- AC01: mode toggle has upscale option ----------
+
+  test("US-004-AC01: mode toggle contains txt2img, img2img, and upscale radio options", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain('value="txt2img"');
+    expect(body).toContain('value="img2img"');
+    expect(body).toContain('value="upscale"');
+    expect(body).toContain('id="mode-upscale"');
+  });
+
+  // ---------- AC02: upscale shows source image, hides generation fields ----------
+
+  test("US-004-AC02: page has generation-fields div that is hidden when upscale is active", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain('id="generation-fields"');
+    expect(body).toContain("generationFields");
+    expect(body).toContain("classList.add('hidden')");
+    expect(body).toContain("classList.remove('hidden')");
+  });
+
+  test("US-004-AC02: upscale mode hides prompt, negative_prompt, width, height, steps, cfg, seed inside generation-fields", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    // All these fields should be inside generation-fields div
+    const genStart = body.indexOf('id="generation-fields"');
+    const genEnd = body.indexOf('id="upscale-fields"');
+    const section = body.slice(genStart, genEnd);
+    expect(section).toContain('id="prompt"');
+    expect(section).toContain('id="negative_prompt"');
+    expect(section).toContain('id="width"');
+    expect(section).toContain('id="height"');
+    expect(section).toContain('id="steps"');
+    expect(section).toContain('id="cfg"');
+    expect(section).toContain('id="seed"');
+    expect(section).toContain('id="denoise_strength"');
+  });
+
+  test("US-004-AC02: upscale-fields section contains source image file input", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain('id="upscale-fields"');
+    const upscaleStart = body.indexOf('id="upscale-fields"');
+    const upscaleEnd = body.indexOf("</div>", upscaleStart + 100);
+    const section = body.slice(upscaleStart, upscaleEnd + 500);
+    expect(section).toContain('id="upscale_source_image"');
+    expect(section).toContain('type="file"');
+    expect(section).toContain('accept="image/*"');
+  });
+
+  test("US-004-AC02: script shows upscale-fields and hides generation-fields when upscale is selected", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("upscaleFields");
+    expect(body).toContain("isUpscale");
+  });
+
+  // ---------- AC03: model selector filters to upscale models ----------
+
+  test("US-004-AC03: script filters model selector to upscale models when upscale mode is active", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("populateModelSelect");
+    expect(body).toContain("modality === 'upscale'");
+    expect(body).toContain("m.modalities && m.modalities.includes('upscale')");
+  });
+
+  // ---------- AC04: upscale job POSTs { modelId, modality: "upscale", params: { source_image } } ----------
+
+  test("US-004-AC04: script submits upscale job with modality=upscale and source_image param", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("modality === 'upscale'");
+    expect(body).toContain("upscale_source_image");
+    expect(body).toContain("params = { source_image: base64 }");
+    expect(body).toContain("JSON.stringify({ modelId, modality, params })");
+  });
+
+  // ---------- AC05 & AC06: result image and error display ----------
+
+  test("US-004-AC05: result image is displayed on job completion (showResult)", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("showResult");
+    expect(body).toContain("payload.url");
+    expect(body).toContain('id="result"');
+  });
+
+  test("US-004-AC06: error message is displayed on job failure (showError)", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("showError");
+    expect(body).toContain("payload.error");
+    expect(body).toContain('id="error"');
+  });
+
+  // ---------- typecheck / lint ----------
 
   test("typecheck and lint pass", () => {
     const typecheck = Bun.spawnSync(["bun", "run", "typecheck"], {
