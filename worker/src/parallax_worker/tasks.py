@@ -9,12 +9,13 @@ from pathlib import Path
 import httpx
 import numpy as np
 from comfy_diffusion import vae_decode
-from comfy_diffusion.conditioning import encode_prompt
+from comfy_diffusion.conditioning import encode_prompt, wan_image_to_video
 from comfy_diffusion.image import image_to_tensor, image_upscale_with_model
 from comfy_diffusion.latent import empty_latent_image
 from comfy_diffusion.models import ModelManager
 from comfy_diffusion.sampling import sample
 from comfy_diffusion.vae import vae_encode
+from comfy_diffusion.video import save_video
 from PIL import Image as PILImage
 
 from parallax_worker.models import InferRequest
@@ -112,6 +113,9 @@ async def run_inference(request: InferRequest) -> None:
         models_dir = os.environ.get("MODELS_DIR", "/mnt/models/comfyui")
         manager = ModelManager(models_dir)
 
+        output_dir = Path(os.getenv("OUTPUT_DIR", "./outputs"))
+        output_dir.mkdir(parents=True, exist_ok=True)
+
         if request.modality == "upscale":
             if request.source_image is None:
                 raise ValueError(
@@ -123,6 +127,42 @@ async def run_inference(request: InferRequest) -> None:
             output_tensor = image_upscale_with_model(upscale_model, image_tensor)
             arr = (output_tensor[0].cpu().float().numpy().clip(0, 1) * 255).astype(np.uint8)
             image = PILImage.fromarray(arr)
+            output_path = output_dir / f"{request.id}.png"
+            image.save(str(output_path))
+            url = f"{callback_base}/outputs/{request.id}.png"
+
+        elif request.modality == "txt2vid":
+            fps = request.video_fps
+            length = max(1, int(request.duration * fps))
+            model, clip, vae = _load_model_components(
+                manager, request.architecture, request.components
+            )
+            positive = encode_prompt(clip, request.prompt)
+            negative = encode_prompt(clip, request.negative_prompt)
+            positive, negative, latent = wan_image_to_video(
+                positive,
+                negative,
+                vae,
+                width=request.width,
+                height=request.height,
+                length=length,
+            )
+            denoised = sample(
+                model,
+                positive,
+                negative,
+                latent,
+                request.steps,
+                request.cfg,
+                request.sampler_name,
+                request.scheduler,
+                request.seed,
+            )
+            frames = vae_decode(vae, denoised)
+            output_path = output_dir / f"{request.id}.mp4"
+            save_video(frames, str(output_path), fps=float(fps))
+            url = f"{callback_base}/outputs/{request.id}.mp4"
+
         else:
             model, clip, vae = _load_model_components(
                 manager, request.architecture, request.components
@@ -145,7 +185,7 @@ async def run_inference(request: InferRequest) -> None:
             else:
                 raise ValueError(
                     f"Unsupported modality '{request.modality}'. "
-                    "Supported: txt2img, img2img, upscale."
+                    "Supported: txt2img, img2img, upscale, txt2vid."
                 )
 
             denoised = sample(
@@ -161,13 +201,9 @@ async def run_inference(request: InferRequest) -> None:
                 denoise=denoise,
             )
             image = vae_decode(vae, denoised)
-
-        output_dir = Path(os.getenv("OUTPUT_DIR", "./outputs"))
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / f"{request.id}.png"
-        image.save(str(output_path))
-
-        url = f"{callback_base}/outputs/{request.id}.png"
+            output_path = output_dir / f"{request.id}.png"
+            image.save(str(output_path))
+            url = f"{callback_base}/outputs/{request.id}.png"
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
