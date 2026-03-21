@@ -4,7 +4,7 @@
       "id": "wai-illustrious-sdxl-v160",
       "name": "WAI Illustrious SDXL v1.6.0",
       "type": "images",
-      "modalities": ["text-to-image", "image-to-image"],
+      "modalities": ["txt2img", "img2img", "text-to-image", "image-to-image"],
       "description": "Illustrious-based SDXL fine-tune optimized for anime/illustration style.",
       "architecture": "bundled-checkpoint",
       "components": {
@@ -15,7 +15,7 @@
       "id": "noobai-xl-vpred-10",
       "name": "NoobAI XL NAIXI v-pred 1.0",
       "type": "images",
-      "modalities": ["text-to-image", "image-to-image"],
+      "modalities": ["txt2img", "img2img", "text-to-image", "image-to-image"],
       "description": "SDXL v-prediction fine-tune from NoobAI, optimized for anime/illustration generation.",
       "architecture": "bundled-checkpoint",
       "components": {
@@ -27,7 +27,7 @@
       "id": "z-image-turbo-fp8",
       "name": "Z-Image Turbo (fp8 quantized)",
       "type": "images",
-      "modalities": ["text-to-image", "image-to-image"],
+      "modalities": ["txt2img", "img2img", "text-to-image", "image-to-image"],
       "description": "fp8-quantized diffusion model for fast image generation.",
       "architecture": "separate-diffusion-model",
       "components": {
@@ -40,7 +40,7 @@
       "id": "z-image-bf16",
       "name": "Z-Image bf16",
       "type": "images",
-      "modalities": ["text-to-image", "image-to-image"],
+      "modalities": ["txt2img", "img2img", "text-to-image", "image-to-image"],
       "description": "Full-precision bf16 diffusion model for high-quality image generation.",
       "architecture": "separate-diffusion-model",
       "components": {
@@ -53,7 +53,7 @@
       "id": "anima-preview",
       "name": "Anima Preview",
       "type": "images",
-      "modalities": ["text-to-image", "image-to-image"],
+      "modalities": ["txt2img", "img2img", "text-to-image", "image-to-image"],
       "description": "Preview diffusion model for anime/animation-style image generation.",
       "architecture": "separate-diffusion-model",
       "components": {
