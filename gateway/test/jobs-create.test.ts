@@ -250,3 +250,137 @@ describe("US-002 POST /v1/jobs accepts and validates upscale jobs", () => {
     expect(res.status).toBe(400);
   });
 });
+
+const txtVidModel: ModelEntry = {
+  id: "test-txt2vid",
+  name: "Test Txt2Vid Model",
+  type: "video",
+  modalities: ["txt2vid"],
+  description: "Test txt2vid model for unit tests",
+  components: {},
+};
+
+const imgVidModel: ModelEntry = {
+  id: "test-img2vid",
+  name: "Test Img2Vid Model",
+  type: "video",
+  modalities: ["img2vid"],
+  description: "Test img2vid model for unit tests",
+  components: {},
+};
+
+const videoLoader = (): ModelsResponse => ({
+  images: [],
+  video: [txtVidModel, imgVidModel],
+  editing: [],
+  audio: [],
+  upscalers: [],
+});
+
+describe("it_000008 US-002 POST /v1/jobs accepts and validates video jobs", () => {
+  beforeEach(() => {
+    clearJobs();
+  });
+
+  // AC01: txt2vid with valid model returns 201
+  test("AC01: modality 'txt2vid' with valid modelId returns 201 with { jobId }", async () => {
+    const res = await postJob(
+      { modelId: "test-txt2vid", modality: "txt2vid", params: { prompt: "a sunset" } },
+      videoLoader,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { jobId: string };
+    expect(typeof body.jobId).toBe("string");
+    expect(body.jobId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  // AC02: img2vid with inputImage returns 201
+  test("AC02: modality 'img2vid' with valid modelId and inputImage returns 201 with { jobId }", async () => {
+    const res = await postJob(
+      {
+        modelId: "test-img2vid",
+        modality: "img2vid",
+        inputImage: "data:image/png;base64,abc",
+        params: {},
+      },
+      videoLoader,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { jobId: string };
+    expect(typeof body.jobId).toBe("string");
+    expect(body.jobId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  // AC03: optional width, height, duration (seconds) params are accepted
+  test("AC03: txt2vid accepts optional width, height, duration (seconds) in params", async () => {
+    const res = await postJob(
+      {
+        modelId: "test-txt2vid",
+        modality: "txt2vid",
+        params: { prompt: "ocean waves", width: 1280, height: 720, duration: 5 },
+      },
+      videoLoader,
+    );
+    expect(res.status).toBe(201);
+  });
+
+  test("AC03: img2vid accepts optional width, height, duration (seconds) in params", async () => {
+    const res = await postJob(
+      {
+        modelId: "test-img2vid",
+        modality: "img2vid",
+        inputImage: "data:image/png;base64,abc",
+        params: { width: 1280, height: 720, duration: 3 },
+      },
+      videoLoader,
+    );
+    expect(res.status).toBe(201);
+  });
+
+  // AC04: unsupported modality (txt2vid/img2vid) with non-video model returns 400
+  test("AC04: txt2vid with model that does not support it returns 400 with descriptive error", async () => {
+    const res = await postJob({ modelId: "test-model", modality: "txt2vid", params: {} });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/not supported/i);
+    expect(body.error).toContain("txt2vid");
+  });
+
+  test("AC04: img2vid with model that does not support it returns 400 with descriptive error", async () => {
+    const res = await postJob({
+      modelId: "test-model",
+      modality: "img2vid",
+      inputImage: "data:image/png;base64,abc",
+      params: {},
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/not supported/i);
+    expect(body.error).toContain("img2vid");
+  });
+
+  // AC05: img2vid without inputImage returns 400
+  test("AC05: img2vid without inputImage returns 400", async () => {
+    const res = await postJob(
+      { modelId: "test-img2vid", modality: "img2vid", params: {} },
+      videoLoader,
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/inputImage/);
+  });
+
+  test("AC05: img2vid with empty string inputImage returns 400", async () => {
+    const res = await postJob(
+      { modelId: "test-img2vid", modality: "img2vid", inputImage: "", params: {} },
+      videoLoader,
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/inputImage/);
+  });
+});

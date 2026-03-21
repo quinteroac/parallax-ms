@@ -174,6 +174,16 @@ export function createJobsRoutes(loader: Loader = loadModels) {
           }
         }
 
+        // img2vid requires a top-level `inputImage` field (base64 or URL string).
+        // width, height, and duration (in seconds) are accepted as optional numeric
+        // fields inside `params` for both txt2vid and img2vid jobs.
+        if (raw.modality === "img2vid") {
+          if (typeof raw.inputImage !== "string" || raw.inputImage.length === 0) {
+            set.status = 400;
+            return { error: "`inputImage` is required for `img2vid` jobs" };
+          }
+        }
+
         set.status = 201;
         const job = createJob(model.type, raw.params as Record<string, unknown>, {
           modelId: raw.modelId,
