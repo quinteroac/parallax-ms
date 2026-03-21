@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { createJob, getJob } from "../job-store";
+import { createJob, getJob, type JobStatus } from "../job-store";
 import { findModelById, loadModels } from "../model-store";
 import type { ModelsResponse } from "../model-store";
 import { enqueueJob } from "../queue";
@@ -77,17 +77,48 @@ export function createJobsRoutes(loader: Loader = loadModels) {
           set.status = 404;
           return { error: "Job not found" };
         }
-        const response: Record<string, unknown> = {
+        const response: {
+          id: string;
+          status: JobStatus;
+          createdAt: string;
+          updatedAt: string;
+          modelId: string;
+          modality: string;
+          url?: string;
+          error?: string;
+        } = {
           id: job.id,
           status: job.status,
           createdAt: job.createdAt,
           updatedAt: job.updatedAt,
+          modelId: job.modelId ?? "",
+          modality: job.modality ?? "",
         };
-        if (job.url !== undefined) response.url = job.url;
-        if (job.error !== undefined) response.error = job.error;
+        if (job.status === "succeeded" && job.url !== undefined) response.url = job.url;
+        if (job.status === "failed" && job.error !== undefined) response.error = job.error;
         return response;
       },
-      { detail: { summary: "Get job status" } },
+      {
+        response: {
+          200: t.Object({
+            id: t.String(),
+            status: t.Union([
+              t.Literal("pending"),
+              t.Literal("running"),
+              t.Literal("succeeded"),
+              t.Literal("failed"),
+            ]),
+            createdAt: t.String(),
+            updatedAt: t.String(),
+            modelId: t.String(),
+            modality: t.String(),
+            url: t.Optional(t.String()),
+            error: t.Optional(t.String()),
+          }),
+          404: t.Object({ error: t.String() }),
+        },
+        detail: { summary: "Get job status" },
+      },
     )
     .post(
       "/jobs",
