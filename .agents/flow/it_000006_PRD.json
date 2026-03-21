@@ -1,0 +1,178 @@
+{
+  "goals": [
+    "Enable clients to submit `txt2img` and `img2img` jobs against any architecture registered in `models.config.json`.",
+    "Worker correctly routes each job to the appropriate `comfy-diffusion` pipeline based on architecture and modality.",
+    "Playground allows model selection and `img2img` (with file upload) without a separate frontend server."
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Gateway forwards architecture and component info to the worker",
+      "description": "As a gateway queue dispatcher, I want the `/infer` payload to include `modelId`, `modality`, `architecture`, and the model's `components` map so that the worker can select the correct pipeline without independently reading the model config.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-001-AC01",
+          "text": "`queue.ts` looks up the dispatched job's model entry (by `job.modelId`) from the loaded config and merges `modelId`, `modality`, `architecture`, and `components` into the body sent to `POST /infer`."
+        },
+        {
+          "id": "US-001-AC02",
+          "text": "The worker's `InferRequest` Pydantic model declares and validates the new fields (`modality: str`, `architecture: str`, `components: dict`)."
+        },
+        {
+          "id": "US-001-AC03",
+          "text": "Existing tests pass; typecheck / lint passes."
+        }
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Worker runs txt2img for all 4 architectures",
+      "description": "As an API client, I want the worker to run `txt2img` inference for all 4 supported architectures using `comfy-diffusion` so that any model registered in `models.config.json` can generate images.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-002-AC01",
+          "text": "`startup.py` no longer loads a single hardcoded checkpoint at startup; model loading is performed per-request in `tasks.py` using architecture and components from the request body."
+        },
+        {
+          "id": "US-002-AC02",
+          "text": "`tasks.py` routes `modality=txt2img` to the correct `comfy-diffusion` loading + pipeline call for each architecture: `bundled-checkpoint`, `separate-diffusion-model`, `separate-unet-dual-clip-image-vae`, `separate-unet-multi-vae`."
+        },
+        {
+          "id": "US-002-AC03",
+          "text": "An unsupported architecture value triggers an error callback to `/worker/done` with a descriptive `error` field (no silent failure)."
+        },
+        {
+          "id": "US-002-AC04",
+          "text": "The output `.png` is written to `OUTPUT_DIR` and the callback URL is `{GATEWAY_CALLBACK_URL}/outputs/{id}.png`."
+        },
+        {
+          "id": "US-002-AC05",
+          "text": "Typecheck / lint passes."
+        }
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Worker runs img2img for all 4 architectures",
+      "description": "As an API client, I want the worker to run `img2img` inference so that I can condition generation on an existing image.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-003-AC01",
+          "text": "`InferRequest` accepts `source_image: str` (base64-encoded PNG or JPG) and `denoise_strength: float` (0.0–1.0, default `0.75`) for img2img jobs."
+        },
+        {
+          "id": "US-003-AC02",
+          "text": "`tasks.py` routes `modality=img2img` to the correct `comfy-diffusion` img2img pipeline for each of the 4 architectures."
+        },
+        {
+          "id": "US-003-AC03",
+          "text": "If `source_image` is absent when `modality=img2img`, the worker POSTs an error callback with a clear `error` message."
+        },
+        {
+          "id": "US-003-AC04",
+          "text": "If the base64 payload is invalid (cannot be decoded to a valid image), the worker POSTs an error callback."
+        },
+        {
+          "id": "US-003-AC05",
+          "text": "Typecheck / lint passes."
+        }
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "txt2img end-to-end verified",
+      "description": "As an API client, I want to submit a `txt2img` job and receive the result image URL via SSE so that I can verify the full gateway-to-worker pipeline.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-004-AC01",
+          "text": "`POST /v1/jobs` with valid `modelId`, `modality=txt2img`, and `params` (at minimum: `prompt`) returns `{ jobId }` with HTTP 201."
+        },
+        {
+          "id": "US-004-AC02",
+          "text": "The worker infers, writes a `.png` to `OUTPUT_DIR`, and POSTs `{ id, url }` to `/worker/done`."
+        },
+        {
+          "id": "US-004-AC03",
+          "text": "`GET /v1/jobs/:id` returns `{ status: \"succeeded\", url: \"...\" }`."
+        },
+        {
+          "id": "US-004-AC04",
+          "text": "The SSE event on `GET /v1/jobs/:id/events` fires with `{ status: \"succeeded\", url: \"...\" }`."
+        },
+        {
+          "id": "US-004-AC05",
+          "text": "The image is accessible at the returned URL and renders correctly. Visually verified in browser."
+        }
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "Playground supports model selection and img2img",
+      "description": "As an end user, I want the playground to let me pick any available model and switch between `txt2img` and `img2img` modes so that I can test inference interactively without writing API calls.",
+      "acceptanceCriteria": [
+        {
+          "id": "US-005-AC01",
+          "text": "On load, the playground fetches `GET /v1/models` and populates a `<select>` with each model's `id` (value) and `name` (label)."
+        },
+        {
+          "id": "US-005-AC02",
+          "text": "A visible toggle (radio buttons or tab) switches between `txt2img` and `img2img` modes; the active mode updates the submitted `modality` and visible form fields."
+        },
+        {
+          "id": "US-005-AC03",
+          "text": "In `img2img` mode, a file `<input>` (accept `image/*`) appears; the selected file is read via `FileReader` and sent as base64 in `params.source_image`."
+        },
+        {
+          "id": "US-005-AC04",
+          "text": "A `denoise_strength` range input (0.0–1.0, step 0.05, default 0.75) is shown in `img2img` mode and included in `params`."
+        },
+        {
+          "id": "US-005-AC05",
+          "text": "The form submits `{ modelId, modality, params }` to `POST /v1/jobs`; SSE and image display work the same as the existing flow."
+        },
+        {
+          "id": "US-005-AC06",
+          "text": "Visually verified in browser for both `txt2img` and `img2img` with a real model."
+        }
+      ]
+    }
+  ],
+  "functionalRequirements": [
+    {
+      "id": "FR-1",
+      "description": "`queue.ts` must include `modelId`, `modality`, `architecture`, and `components` in every body sent to `POST /infer`."
+    },
+    {
+      "id": "FR-2",
+      "description": "`InferRequest` must declare: `modality: str`, `architecture: str`, `components: dict`, `source_image: str | None = None`, `denoise_strength: float = 0.75`."
+    },
+    {
+      "id": "FR-3",
+      "description": "The worker must load model weights at inference time from the `components` paths in the request; the `MODELS_DIR` env var provides the base directory for relative component paths."
+    },
+    {
+      "id": "FR-4",
+      "description": "Worker must implement `txt2img` for all 4 architectures exclusively via `comfy-diffusion` (no direct ComfyUI API calls, no other inference libraries)."
+    },
+    {
+      "id": "FR-5",
+      "description": "Worker must implement `img2img` for all 4 architectures exclusively via `comfy-diffusion`."
+    },
+    {
+      "id": "FR-6",
+      "description": "Any unsupported architecture or missing required component must result in an error callback — no silent fallback or stub success."
+    },
+    {
+      "id": "FR-7",
+      "description": "Playground model selector is populated dynamically from `GET /v1/models` on page load; a loading/error state is shown if the fetch fails."
+    },
+    {
+      "id": "FR-8",
+      "description": "Playground sends the selected `modelId` as a top-level field alongside `modality` and `params` in the `POST /v1/jobs` body."
+    },
+    {
+      "id": "FR-9",
+      "description": "Source image is transmitted as a base64-encoded string inside `params.source_image` (no separate upload endpoint required)."
+    }
+  ]
+}

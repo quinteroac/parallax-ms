@@ -18,7 +18,7 @@ export const app = new Elysia()
       path: "/swagger",
       documentation: {
         info: {
-          title: "Parallax Gateway API",
+          title: "Parallax Media Server",
           version: "1.0.0",
           description: "Unified API for media generation backed by comfy-diffusion.",
         },

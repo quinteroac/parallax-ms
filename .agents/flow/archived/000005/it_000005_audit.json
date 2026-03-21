@@ -1,0 +1,33 @@
+{
+  "iteration": "000005",
+  "generatedAt": "2026-03-20",
+  "overallAssessment": "comply",
+  "fixesApplied": [
+    {
+      "file": "gateway/src/index.ts",
+      "line": 21,
+      "change": "Swagger title corrected from \"Parallax Gateway API\" to \"Parallax Media Server\""
+    }
+  ],
+  "verificationByFR": [
+    { "frId": "FR-1", "assessment": "comply" },
+    { "frId": "FR-2", "assessment": "comply" },
+    { "frId": "FR-3", "assessment": "comply" },
+    { "frId": "FR-4", "assessment": "comply" },
+    { "frId": "FR-5", "assessment": "comply" },
+    { "frId": "FR-6", "assessment": "comply" },
+    { "frId": "FR-7", "assessment": "comply" }
+  ],
+  "verificationByUS": [
+    { "usId": "US-001", "assessment": "comply" },
+    { "usId": "US-002", "assessment": "comply" },
+    { "usId": "US-003", "assessment": "comply" },
+    { "usId": "US-004", "assessment": "comply" }
+  ],
+  "deferredItems": [
+    {
+      "title": "Make modelId and modality required in Job interface",
+      "description": "Currently typed as optional (?: string). Safe in practice since POST /v1/jobs always writes them, but weaker than PRD intent. Requires updating all createJob callers in test files."
+    }
+  ]
+}

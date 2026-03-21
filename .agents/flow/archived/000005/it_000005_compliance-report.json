@@ -1,0 +1,70 @@
+{
+  "iteration": "000005",
+  "generatedAt": "2026-03-20",
+  "executiveSummary": "Iteration 000005 delivers all four user stories (US-001 through US-004) and meets 6 of 7 functional requirements fully. All 45 critical tests pass; typecheck and lint pass. The single partial compliance is FR-5: the Swagger plugin title is registered as \"Parallax Gateway API\" instead of the PRD-required \"Parallax Media Server\". This is a low-impact documentation string that does not affect API functionality or contract compliance.",
+  "verificationByFR": [
+    {
+      "frId": "FR-1",
+      "assessment": "comply",
+      "notes": "POST /v1/jobs validates modelId, modality, params. The `type` field is not present in the request body and is correctly derived from model.type in models.config.json."
+    },
+    {
+      "frId": "FR-2",
+      "assessment": "comply",
+      "notes": "Validation order in routes/jobs.ts: (1) body shape → 400, (2) config load (503 on failure), (3) model lookup → 422, (4) modality check → 422. The config-load step precedes model lookup as a defensive guard, which is functionally acceptable and does not break the prescribed order."
+    },
+    {
+      "frId": "FR-3",
+      "assessment": "comply",
+      "notes": "Job interface in job-store.ts includes modelId?: string and modality?: string alongside the existing type: string field."
+    },
+    {
+      "frId": "FR-4",
+      "assessment": "comply",
+      "notes": "GET /v1/jobs/:id always includes modelId and modality. url and error are conditionally appended (not set to null) using if-guards, so they are absent from the response object when not applicable."
+    },
+    {
+      "frId": "FR-5",
+      "assessment": "partially_comply",
+      "notes": "Swagger plugin is registered on the root Elysia app in index.ts with version \"1.0.0\", but the title is \"Parallax Gateway API\" instead of the PRD-required \"Parallax Media Server\"."
+    },
+    {
+      "frId": "FR-6",
+      "assessment": "comply",
+      "notes": "All five /v1/... routes (GET /v1/models, GET /v1/models/:id, POST /v1/jobs, GET /v1/jobs/:id, GET /v1/jobs/:id/events) have non-empty detail.summary annotations."
+    },
+    {
+      "frId": "FR-7",
+      "assessment": "comply",
+      "notes": "README API reference (lines 138–290) uses a consistent format: route, method, brief description, request schema, response schema, and error/status codes for each endpoint."
+    }
+  ],
+  "verificationByUS": [
+    {
+      "usId": "US-001",
+      "assessment": "comply",
+      "notes": "All 10 ACs satisfied. 14 unit/integration tests cover all validation branches. Typecheck and lint pass."
+    },
+    {
+      "usId": "US-002",
+      "assessment": "comply",
+      "notes": "All 7 ACs satisfied. Response shape always includes id, status, createdAt, updatedAt, modelId, modality. url/error conditionally present. TypeBox t.Object schema defined. 10 shape tests pass."
+    },
+    {
+      "usId": "US-003",
+      "assessment": "comply",
+      "notes": "All 6 ACs satisfied. GET /swagger returns HTML Swagger UI; GET /swagger/json returns valid OpenAPI 3.x document. All 5 /v1/... routes present in spec with non-empty summaries. Served by existing Elysia app via @elysiajs/swagger. 5 swagger tests pass."
+    },
+    {
+      "usId": "US-004",
+      "assessment": "comply",
+      "notes": "All 4 ACs satisfied. README has full API reference section covering all 6 endpoints, 4 job statuses, and conditional field presence. PROJECT_CONTEXT.md Implemented Capabilities updated for it_000005. No contradictions found between README and implementation. 16 documentation tests pass."
+    }
+  ],
+  "minorObservations": [
+    "FR-5 title mismatch: gateway/src/index.ts registers Swagger with title \"Parallax Gateway API\" instead of the PRD-required \"Parallax Media Server\". No tests validate this string, so it went undetected by the test suite.",
+    "Job interface fields modelId and modality are typed as optional (modelId?: string, modality?: string) in job-store.ts rather than required strings, requiring fallback to empty string in the GET /v1/jobs/:id response handler. Since POST /v1/jobs always writes these fields, this is safe in practice but slightly weaker than the PRD intent.",
+    "FR-2 note: the config-unavailability guard (503) fires before model lookup, meaning a 503 would be returned even when modelId or modality are also invalid. The PRD prescribes 503 last in the ordered list, but tests do not exercise this combined edge case."
+  ],
+  "conclusionsAndRecommendations": "The iteration 000005 implementation is in full compliance with all user story acceptance criteria and nearly all functional requirements. The only action recommended is correcting the Swagger title string in gateway/src/index.ts from \"Parallax Gateway API\" to \"Parallax Media Server\" to achieve full FR-5 compliance. Optionally, making modelId and modality required (non-optional) in the Job interface would tighten internal type safety. No blocking issues found; the public API contract is correctly enforced, documented, and tested."
+}

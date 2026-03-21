@@ -7,6 +7,7 @@
 
 export const ARCHITECTURES = [
   "bundled-checkpoint",
+  "separate-diffusion-model",
   "separate-unet-dual-clip-image-vae",
   "separate-unet-multi-vae",
 ] as const;
@@ -20,17 +21,16 @@ const VALID_ARCHITECTURES = new Set<string>(ARCHITECTURES);
 export interface ModelComponents {
   /** Bundled checkpoint file (bundles UNet + text encoder(s) + VAE). */
   checkpoint?: string;
+  /** Standalone diffusion model weights file (used with separate-diffusion-model architecture). */
+  diffusion_model?: string;
   /** Standalone UNet weights file. */
   unet?: string;
   /** CLIP text encoder file, or an array of files (e.g. clip_l + clip_g for SDXL). */
   clip?: string | string[];
   /** Standalone text encoder file (used alongside a separate CLIP). */
   text_encoder?: string;
-  /** VAE weights, split by output modality. */
-  vae?: {
-    image?: string;
-    audio?: string;
-  };
+  /** VAE weights: either a single filename string or split by output modality. */
+  vae?: string | { image?: string; audio?: string };
 }
 
 /** A validated model entry matching the models.config.json schema. */
@@ -44,6 +44,7 @@ export interface ModelConfigEntry {
   /**
    * Architecture variant that determines how component files are wired together:
    * - `bundled-checkpoint`: single file bundles UNet + text encoder(s) + VAE.
+   * - `separate-diffusion-model`: standalone diffusion model with separate VAE and text encoder.
    * - `separate-unet-dual-clip-image-vae`: separate UNet, CLIP-L, CLIP-G, and image VAE files.
    * - `separate-unet-multi-vae`: shared UNet with distinct image VAE and audio VAE files.
    */
@@ -70,17 +71,24 @@ function validateComponents(raw: unknown, index: number): ModelComponents {
       throw new Error(`models[${index}].components.clip must be a string or array of strings`);
   }
 
+  if (c.diffusion_model !== undefined && typeof c.diffusion_model !== "string")
+    throw new Error(`models[${index}].components.diffusion_model must be a string`);
+
   if (c.text_encoder !== undefined && typeof c.text_encoder !== "string")
     throw new Error(`models[${index}].components.text_encoder must be a string`);
 
   if (c.vae !== undefined) {
-    if (typeof c.vae !== "object" || c.vae === null || Array.isArray(c.vae))
-      throw new Error(`models[${index}].components.vae must be an object`);
-    const vae = c.vae as Record<string, unknown>;
-    if (vae.image !== undefined && typeof vae.image !== "string")
-      throw new Error(`models[${index}].components.vae.image must be a string`);
-    if (vae.audio !== undefined && typeof vae.audio !== "string")
-      throw new Error(`models[${index}].components.vae.audio must be a string`);
+    if (typeof c.vae === "string") {
+      // single filename — valid
+    } else if (typeof c.vae === "object" && c.vae !== null && !Array.isArray(c.vae)) {
+      const vae = c.vae as Record<string, unknown>;
+      if (vae.image !== undefined && typeof vae.image !== "string")
+        throw new Error(`models[${index}].components.vae.image must be a string`);
+      if (vae.audio !== undefined && typeof vae.audio !== "string")
+        throw new Error(`models[${index}].components.vae.audio must be a string`);
+    } else {
+      throw new Error(`models[${index}].components.vae must be a string or object`);
+    }
   }
 
   return c as ModelComponents;

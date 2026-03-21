@@ -3,7 +3,9 @@
     "allow": [
       "Bash(ls /home/victor/AI/parallax-ms/*.env* /home/victor/AI/parallax-ms/.env*)",
       "Bash(ls /home/victor/AI/parallax-ms/gateway/.env*)",
-      "Bash(chmod +x /home/victor/AI/parallax-ms/scripts/dev.sh)"
+      "Bash(chmod +x /home/victor/AI/parallax-ms/scripts/dev.sh)",
+      "Bash(curl -s http://localhost:3000/v1/models)",
+      "Bash(curl -sv http://localhost:3000/v1/models)"
     ]
   }
 }
