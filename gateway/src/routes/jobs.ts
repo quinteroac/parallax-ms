@@ -31,9 +31,12 @@ export function createJobsRoutes(loader: Loader = loadModels) {
         const isTerminal = job.status === "succeeded" || job.status === "failed";
         let unsubscribe: (() => void) | undefined;
 
+        let heartbeat: ReturnType<typeof setInterval> | undefined;
+
         const stream = new ReadableStream<string>({
           start(controller) {
             const send = (evt: JobTerminalEvent) => {
+              clearInterval(heartbeat);
               controller.enqueue(sseEvent(evt));
               controller.close();
             };
@@ -48,6 +51,10 @@ export function createJobsRoutes(loader: Loader = loadModels) {
               return;
             }
 
+            heartbeat = setInterval(() => {
+              controller.enqueue(": ping\n\n");
+            }, 15_000);
+
             unsubscribe = subscribe(params.id, (evt) => {
               unsubscribe?.();
               unsubscribe = undefined;
@@ -55,6 +62,7 @@ export function createJobsRoutes(loader: Loader = loadModels) {
             });
           },
           cancel() {
+            clearInterval(heartbeat);
             unsubscribe?.();
           },
         });
@@ -181,6 +189,28 @@ export function createJobsRoutes(loader: Loader = loadModels) {
           if (typeof raw.inputImage !== "string" || raw.inputImage.length === 0) {
             set.status = 400;
             return { error: "`inputImage` is required for `img2vid` jobs" };
+          }
+        }
+
+        if (raw.modality === "txt2vid" || raw.modality === "img2vid") {
+          const vp = raw.params as Record<string, unknown>;
+          if (vp.width !== undefined) {
+            if (!Number.isInteger(vp.width) || (vp.width as number) <= 0) {
+              set.status = 400;
+              return { error: "`width` must be a positive integer" };
+            }
+          }
+          if (vp.height !== undefined) {
+            if (!Number.isInteger(vp.height) || (vp.height as number) <= 0) {
+              set.status = 400;
+              return { error: "`height` must be a positive integer" };
+            }
+          }
+          if (vp.duration !== undefined) {
+            if (typeof vp.duration !== "number" || (vp.duration as number) <= 0) {
+              set.status = 400;
+              return { error: "`duration` must be a positive number" };
+            }
           }
         }
 

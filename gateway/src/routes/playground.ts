@@ -287,7 +287,7 @@ const html = `<!DOCTYPE html>
 <body>
   <h1>Parallax Playground</h1>
 
-  <form id="job-form">
+  <form id="job-form" novalidate>
     <label>
       Model
       <select id="model-select" name="modelId" required>
@@ -313,15 +313,17 @@ const html = `<!DOCTYPE html>
     </fieldset>
 
     <div id="generation-fields">
-      <label>
-        Prompt
-        <input type="text" id="prompt" name="prompt" placeholder="a serene mountain lake at sunset" required />
-      </label>
+      <div id="prompt-fields">
+        <label>
+          Prompt
+          <input type="text" id="prompt" name="prompt" placeholder="a serene mountain lake at sunset" required />
+        </label>
 
-      <label>
-        Negative prompt <span style="font-weight:400;color:#666">(optional)</span>
-        <input type="text" id="negative_prompt" name="negative_prompt" placeholder="blurry, low quality" />
-      </label>
+        <label style="margin-top:1rem;">
+          Negative prompt <span style="font-weight:400;color:#666">(optional)</span>
+          <input type="text" id="negative_prompt" name="negative_prompt" placeholder="blurry, low quality" />
+        </label>
+      </div>
 
       <div class="img2img-fields" id="img2img-fields">
         <label>
@@ -338,7 +340,7 @@ const html = `<!DOCTYPE html>
         </label>
       </div>
 
-      <div class="row">
+      <div class="row" id="img-dimensions-row">
         <label>
           Width
           <input type="number" id="width" name="width" value="1024" min="64" max="2048" step="64" />
@@ -391,7 +393,7 @@ const html = `<!DOCTYPE html>
         </label>
         <label>
           Height
-          <input type="number" id="vid_height" name="vid_height" value="720" min="64" max="2048" step="64" />
+          <input type="number" id="vid_height" name="vid_height" value="768" min="64" max="2048" step="64" />
         </label>
       </div>
 
@@ -412,7 +414,7 @@ const html = `<!DOCTYPE html>
   <div id="error" role="alert"></div>
 
   <img id="result" alt="Generated image" />
-  <video id="result-video" controls></video>
+  <video id="result-video" controls preload="auto"></video>
 
   <script>
     const form = document.getElementById('job-form');
@@ -428,6 +430,9 @@ const html = `<!DOCTYPE html>
     const vidFields = document.getElementById('vid-fields');
     const img2vidSource = document.getElementById('img2vid-source');
     const generationFields = document.getElementById('generation-fields');
+    const imgDimensionsRow = document.getElementById('img-dimensions-row');
+    const promptFields = document.getElementById('prompt-fields');
+    const promptInput = document.getElementById('prompt');
     const denoiseInput = document.getElementById('denoise_strength');
     const denoiseValue = document.getElementById('denoise-value');
 
@@ -519,12 +524,20 @@ const html = `<!DOCTYPE html>
           vidFields.classList.remove('visible');
           submitBtn.textContent = 'Upscale';
         } else if (isVideo) {
-          generationFields.classList.add('hidden');
+          // Both txt2vid and img2vid show generation fields (prompt, steps/cfg/seed).
+          generationFields.classList.remove('hidden');
+          promptFields.style.display = '';
+          promptInput.disabled = false;
+          // Hide the img dimensions row — vid-fields already has its own width/height
+          imgDimensionsRow.style.display = 'none';
           upscaleFields.classList.remove('visible');
           vidFields.classList.add('visible');
           submitBtn.textContent = 'Generate video';
         } else {
           generationFields.classList.remove('hidden');
+          promptFields.style.display = '';
+          promptInput.disabled = false;
+          imgDimensionsRow.style.display = '';
           upscaleFields.classList.remove('visible');
           vidFields.classList.remove('visible');
           submitBtn.textContent = 'Generate';
@@ -544,14 +557,15 @@ const html = `<!DOCTYPE html>
 
         populateModelSelect(modality);
 
-        // disable generation controls when in upscale or video mode so browser
-        // validation doesn't block submission for hidden required fields
-        setGenerationControlsDisabled(isUpscale || isVideo);
+        // disable generation controls only in upscale mode; in img2vid the prompt
+        // input is individually disabled above, steps/cfg/seed remain enabled.
+        setGenerationControlsDisabled(isUpscale);
       });
     });
 
-    // Ensure initial disabled state matches the current modality
-    setGenerationControlsDisabled(document.querySelector('input[name="modality"]:checked').value === 'upscale');
+    // Ensure initial disabled state matches the current modality.
+    const initialModality = document.querySelector('input[name="modality"]:checked').value;
+    setGenerationControlsDisabled(initialModality === 'upscale');
 
     // Live denoise strength display
     denoiseInput.addEventListener('input', () => {
@@ -580,7 +594,13 @@ const html = `<!DOCTYPE html>
     function showResult(url) {
       const isVideoUrl = url.toLowerCase().endsWith('.mp4');
       if (isVideoUrl) {
+        resultVideo.onerror = () => {
+          const err = resultVideo.error;
+          const msg = err ? 'Video error (code ' + err.code + '): ' + err.message : 'Unknown video error';
+          showError(msg + ' — URL: ' + url);
+        };
         resultVideo.src = url;
+        resultVideo.load();
         resultVideo.classList.add('visible');
         resultImg.classList.remove('visible');
       } else {
@@ -648,7 +668,10 @@ const html = `<!DOCTYPE html>
           const width = parseInt(document.getElementById('vid_width').value, 10);
           const height = parseInt(document.getElementById('vid_height').value, 10);
           const duration = parseFloat(document.getElementById('duration').value);
-          params = { prompt, width, height, duration };
+          const steps = parseInt(document.getElementById('steps').value, 10);
+          const cfg = parseFloat(document.getElementById('cfg').value);
+          const seed = parseInt(document.getElementById('seed').value, 10);
+          params = { prompt, width, height, duration, steps, cfg, seed };
           if (negativePrompt) params.negative_prompt = negativePrompt;
         } else {
           const prompt = document.getElementById('prompt').value.trim();

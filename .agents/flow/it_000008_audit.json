@@ -1,0 +1,43 @@
+{
+  "iteration": "000008",
+  "generatedAt": "2026-03-21",
+  "overallAssessment": "comply",
+  "executiveSummary": "Iteration 000008 delivers txt2vid and img2vid inference end-to-end with full compliance after two targeted fixes: gateway validation for width/height/duration, and worker MP4 output verification.",
+  "verificationByFR": [
+    { "frId": "FR-1", "assessment": "comply" },
+    { "frId": "FR-2", "assessment": "comply" },
+    { "frId": "FR-3", "assessment": "comply" },
+    { "frId": "FR-4", "assessment": "comply" },
+    { "frId": "FR-5", "assessment": "comply" },
+    { "frId": "FR-6", "assessment": "comply" },
+    { "frId": "FR-7", "assessment": "comply" },
+    { "frId": "FR-8", "assessment": "comply" }
+  ],
+  "verificationByUS": [
+    { "usId": "US-001", "assessment": "comply" },
+    { "usId": "US-002", "assessment": "comply" },
+    { "usId": "US-003", "assessment": "comply" },
+    { "usId": "US-004", "assessment": "comply" },
+    { "usId": "US-005", "assessment": "comply" }
+  ],
+  "minorObservations": [
+    "US-005-AC06 browser visual verification is outside static audit scope.",
+    "outputs.ts content-type detection is extension-only; future artifact types would need it updated.",
+    "video_fps is not surfaced as a user-configurable parameter in the playground or gateway API.",
+    "No client-side image size validation in playground before sending base64.",
+    "playground.ts is 600+ lines; consider modularising in a future iteration."
+  ],
+  "fixes": [
+    {
+      "fr": "FR-2",
+      "file": "gateway/src/routes/jobs.ts",
+      "description": "Added validation for txt2vid/img2vid jobs that rejects non-positive width/height (must be positive integers) and non-positive duration (must be positive number) with 400 and a descriptive error."
+    },
+    {
+      "fr": "FR-6",
+      "file": "worker/src/parallax_worker/tasks.py",
+      "description": "Added post-save_video() check in both img2vid and txt2vid branches that verifies the output file exists and has .mp4 suffix; raises RuntimeError otherwise, propagating as a failed job."
+    }
+  ],
+  "conclusionsAndRecommendations": "Both compliance gaps resolved. All FRs and USs now comply. Minor observations are low-priority and tracked for future iterations."
+}

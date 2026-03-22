@@ -6,7 +6,29 @@
       "Bash(chmod +x /home/victor/AI/parallax-ms/scripts/dev.sh)",
       "Bash(curl -s http://localhost:3000/v1/models)",
       "Bash(curl -sv http://localhost:3000/v1/models)",
-      "Bash(bun test:*)"
+      "Bash(bun test:*)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(python -c \"from comfy_diffusion.models import ModelManager; import inspect; print\\(inspect.getsource\\(ModelManager.load_clip\\)\\)\")",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(pip install:*)",
+      "Bash(uv sync:*)",
+      "Bash(find /home/victor/AI/parallax-ms/worker/.venv -name libcudnn*.so*)",
+      "Read(//usr/**)",
+      "Bash(ldconfig -p)",
+      "Bash(.venv/bin/python -c \"import torch; print\\(torch.__version__, torch.version.cuda\\)\")",
+      "Read(//home/victor/.zikon/scripts/generate/.venv/lib/python3.12/site-packages/**)",
+      "Bash(uv lock:*)",
+      "Bash(uv pip:*)",
+      "Bash(LD_LIBRARY_PATH=.venv/lib/python3.12/site-packages/nvidia/cudnn/lib:$LD_LIBRARY_PATH .venv/bin/python -c \"import torch; print\\(torch.__version__, torch.version.cuda\\)\")",
+      "Read(//home/victor/**)",
+      "Bash(find /home/victor/AI/parallax-ms/worker/.venv -type f -name *.py -path */comfy*)",
+      "Bash(ls /home/victor/AI/parallax-ms/worker/.venv/lib/python*/site-packages/)",
+      "Bash(ffmpeg -version)",
+      "Bash(find /home/victor/AI/parallax-ms/.venv -type f -name *.py)",
+      "Bash(find /home/victor/AI/parallax-ms/.venv/lib/python*/site-packages -type f -name *.py)",
+      "Bash(find /home/victor/AI/parallax-ms/.venv -path */comfy_diffusion* -type d)",
+      "Read(//mnt/models/comfyui/clip_vision/**)",
+      "Read(//mnt/models/comfyui/checkpoints/**)"
     ]
   }
 }

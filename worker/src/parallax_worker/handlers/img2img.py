@@ -1,0 +1,57 @@
+"""img2img modality handler."""
+
+import logging
+from pathlib import Path
+
+from comfy_diffusion import vae_decode
+
+logger = logging.getLogger(__name__)
+from comfy_diffusion.conditioning import encode_prompt
+from comfy_diffusion.models import ModelManager
+from comfy_diffusion.sampling import sample
+from comfy_diffusion.vae import vae_encode
+
+from parallax_worker.handlers.base import ModalityHandler
+from parallax_worker.model_loader import load_model_components
+from parallax_worker.models import InferRequest
+from parallax_worker.utils import _decode_source_image
+
+
+class Img2ImgHandler(ModalityHandler):
+    async def run(
+        self,
+        request: InferRequest,
+        manager: ModelManager,
+        output_dir: Path,
+        callback_base: str,
+    ) -> str:
+        if request.source_image is None:
+            raise ValueError(
+                "source_image is required for img2img modality but was not provided."
+            )
+        logger.info("img2img start  job=%s size=%dx%d steps=%d denoise=%.2f seed=%d",
+                    request.id, request.width, request.height, request.steps,
+                    request.denoise_strength, request.seed)
+        pil_image = _decode_source_image(request.source_image)
+        mc = load_model_components(manager, request.architecture, request.components)
+        positive = encode_prompt(mc.clip, request.prompt)
+        negative = encode_prompt(mc.clip, request.negative_prompt)
+        latent = vae_encode(mc.vae, pil_image)
+        logger.info("img2img sampling  job=%s", request.id)
+        denoised = sample(
+            mc.model,
+            positive,
+            negative,
+            latent,
+            request.steps,
+            request.cfg,
+            request.sampler_name,
+            request.scheduler,
+            request.seed,
+            denoise=request.denoise_strength,
+        )
+        image = vae_decode(mc.vae, denoised)
+        output_path = output_dir / f"{request.id}.png"
+        image.save(str(output_path))
+        logger.info("img2img done  job=%s output=%s", request.id, output_path)
+        return f"{callback_base}/outputs/{request.id}.png"

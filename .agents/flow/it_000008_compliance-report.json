@@ -1,0 +1,82 @@
+{
+  "iteration": "000008",
+  "generatedAt": "2026-03-21",
+  "executiveSummary": "Iteration 000008 delivers txt2vid and img2vid inference end-to-end with high overall compliance. All 5 user stories are substantially implemented: model discovery returns video models, the gateway accepts and validates video jobs, the worker runs both pipelines exclusively via comfy_diffusion, artifacts are served as MP4 over HTTP, and the playground UI supports full video mode. Two gaps exist. First, FR-2 requires the gateway itself to validate width/height as positive integers and duration as a positive number and return 400 for invalid values — this validation is absent at the gateway layer and only enforced downstream by the worker's Pydantic model. Second, FR-6 mandates that the worker explicitly reject or error when comfy_diffusion produces a non-MP4 output, but no such check is implemented; the design relies solely on a hardcoded '.mp4' extension.",
+  "verificationByFR": [
+    {
+      "frId": "FR-1",
+      "assessment": "comply",
+      "notes": "models.config.json includes wan-video-t2v-14b (txt2vid) and wan-video-i2v-14b (img2vid). loadModels() and findModelById() iterate all model types including video. GET /v1/models returns both entries with correct id, architecture, modalities, and components."
+    },
+    {
+      "frId": "FR-2",
+      "assessment": "partially_comply",
+      "notes": "Gateway validates that img2vid requires inputImage (400 returned), that modality is supported by the requested model (400 returned), and that the model exists. However, the gateway does NOT validate that width and height are positive integers or that duration is a positive number; it does not return 400 for invalid numeric values. That constraint is only enforced downstream by the worker's Pydantic field (duration: float = Field(gt=0.0))."
+    },
+    {
+      "frId": "FR-3",
+      "assessment": "comply",
+      "notes": "Gateway folds inputImage into source_image within jobParams for img2vid jobs (jobs.ts line 192). The queue dispatcher includes all jobParams in the worker POST /infer body alongside modelId, modality, architecture, and components. width, height, and duration are forwarded as part of params."
+    },
+    {
+      "frId": "FR-4",
+      "assessment": "comply",
+      "notes": "Worker InferRequest Pydantic model includes: width: int (default 512), height: int (default 512), duration: float = Field(default=5.0, gt=0.0), source_image: str | None, and modality: Literal[..., 'txt2vid', 'img2vid']. All required fields are present with appropriate types and validation."
+    },
+    {
+      "frId": "FR-5",
+      "assessment": "comply",
+      "notes": "Both txt2vid and img2vid branches in tasks.py import and use comfy_diffusion exclusively: encode_prompt, wan_image_to_video, sample, vae_decode, save_video. No fallback to other inference libraries."
+    },
+    {
+      "frId": "FR-6",
+      "assessment": "partially_comply",
+      "notes": "The worker hardcodes the output path as {request.id}.mp4 and always calls comfy_diffusion.video.save_video which encodes to MP4. However, there is no explicit post-write check that verifies the output file is a valid MP4, and no error is raised if comfy_diffusion were to produce a non-MP4 artifact. The requirement explicitly states the worker must reject or error in that case."
+    },
+    {
+      "frId": "FR-7",
+      "assessment": "comply",
+      "notes": "Gateway serves artifacts via GET /outputs/:filename (outputs.ts). Content-type is correctly set to video/mp4 for .mp4 files. The worker callback URL uses the pattern {callback_base}/outputs/{request.id}.mp4, consistent with the gateway's static route."
+    },
+    {
+      "frId": "FR-8",
+      "assessment": "comply",
+      "notes": "The SSE emitter and job store are modality-agnostic. Terminal events carry {id, status, url?, error?} for all job types. Video jobs share the same SSE path and format as existing modalities."
+    }
+  ],
+  "verificationByUS": [
+    {
+      "usId": "US-001",
+      "assessment": "comply",
+      "notes": "All 4 ACs pass: models.config.json has both modalities, GET /v1/models returns them with correct fields, GET /v1/models/:id resolves each, and typecheck passes."
+    },
+    {
+      "usId": "US-002",
+      "assessment": "partially_comply",
+      "notes": "ACs 01, 02, 04, 05, 06 pass. AC03 is only partially met: width, height, and duration are accepted as params (no rejection of valid requests), but invalid numeric values (e.g. negative width) are not rejected with 400 at the gateway level, failing the validation side of AC03 / FR-2."
+    },
+    {
+      "usId": "US-003",
+      "assessment": "comply",
+      "notes": "All 8 ACs pass: worker accepts txt2vid via POST /infer, runs async after 202, uses comfy_diffusion exclusively, writes MP4 to disk, POSTs to gateway /worker/done with url, gateway updates to succeeded and fires SSE, GET /v1/jobs/:id returns succeeded + url, and errors propagate to failed state."
+    },
+    {
+      "usId": "US-004",
+      "assessment": "comply",
+      "notes": "All 8 ACs pass: worker accepts img2vid with inputImage/source_image, runs async after 202, uses comfy_diffusion exclusively, writes MP4, posts callback, gateway updates to succeeded + SSE, GET /v1/jobs/:id returns succeeded + url, and errors propagate."
+    },
+    {
+      "usId": "US-005",
+      "assessment": "comply",
+      "notes": "ACs 01–05 and 07 verified by code: model selector filters by modality, txt2vid/img2vid radio buttons are rendered, img2vid shows file upload + URL input, width/height/duration inputs are present and included in job payload, completed video jobs render a <video> element. AC06 (visually verified in browser) cannot be confirmed by static code audit."
+    }
+  ],
+  "minorObservations": [
+    "US-005-AC06 requires visual browser verification. The playground code is structurally correct (video element, show/hide logic on URL ending with .mp4, controls attribute), but browser-level QA is outside the scope of this static audit.",
+    "The gateway static route handler (outputs.ts) determines content-type solely by file extension (.mp4 → video/mp4, otherwise image/png). This would serve any non-image, non-video file with an incorrect content-type if other artifact types are added in future iterations.",
+    "Worker video_fps field defaults to 16 fps but is not surfaced in the playground UI or gateway API as a user-configurable parameter. This is not a compliance gap but limits client control over output quality.",
+    "The img2vid branch in the playground reads the file as base64 and sends it as a data URI. There is no client-side size validation; very large images could cause slow submissions or gateway payload size rejections.",
+    "playground.ts is a large single-file template (600+ lines). As video mode adds complexity, this will become harder to maintain; future iterations should consider breaking it into smaller modules or a frontend framework."
+  ],
+  "conclusionsAndRecommendations": "Iteration 000008 is functionally complete and delivers a working end-to-end video pipeline. The two partial-compliance findings are minor gaps with straightforward fixes. (1) FR-2 / US-002-AC03: Add explicit validation in the gateway job creation handler to reject width/height that are not positive integers and duration that is not a positive number, returning 400 with a descriptive error. This is a one-function change in jobs.ts and corresponding test cases. (2) FR-6: Add a post-inference check in the worker (tasks.py) that verifies the output file exists and ends with '.mp4'; raise an exception (which will be caught by the existing error handler and propagated as a failed job) if the condition is not met. Both fixes are low-risk, well-isolated, and should be addressed before the branch is merged to main."
+}

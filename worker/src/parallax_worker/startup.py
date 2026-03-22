@@ -20,12 +20,14 @@ def bootstrap() -> None:
 
     from comfy_diffusion import check_runtime
 
+    logger.info("Checking ComfyUI runtime…")
     # Verify the runtime is healthy; exit immediately on any error
     runtime: dict[str, Any] = check_runtime()
     if "error" in runtime:
         logger.error("Runtime bootstrap failed: %s", runtime["error"])
         sys.exit(1)
 
+    logger.info("ComfyUI runtime OK: %s", runtime)
     _ready = True
 
 

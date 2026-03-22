@@ -52,6 +52,18 @@
 - **`worker` (uv + FastAPI):** Inference API, background execution, integration with comfy-diffusion, on-disk outputs.
 - **Shared contract:** JSON job payloads and versioned routes under `/v1/...` (locked in Phase 4); Phase 1 focuses on layout, env, and health.
 
+## Worker Inference Architecture
+
+The worker inference layer follows **Strategy Pattern + Registry**:
+
+- **`inference.py`** — entry point; looks up modality in `REGISTRY`, instantiates `ModelManager`, calls `handler.run()`, and handles the HTTP callback. No modality `if/elif` chains.
+- **`model_loader.py`** — exposes `load_model_components(manager, architecture, components) → ModelComponents`; backed by `_LOADERS: dict[str, Callable]` keyed by architecture string (no `if/elif`).
+- **`handlers/base.py`** — `ModalityHandler` ABC defining `async def run(request, manager, output_dir, callback_base) → str`.
+- **`handlers/registry.py`** — `REGISTRY: dict[str, ModalityHandler]` mapping each modality key to a singleton handler instance.
+- **`handlers/{txt2img,img2img,upscale,txt2vid,img2vid}.py`** — concrete handlers; each imports only what it needs from `comfy_diffusion`.
+- **`utils.py`** — shared helpers (`_decode_source_image`).
+- **`tasks.py`** — thin re-export shim (`from parallax_worker.inference import run_inference`) kept for backward compatibility with `main.py`.
+
 ## Implemented Capabilities
 
 <!-- Updated at the end of each iteration by nvst create project-context -->

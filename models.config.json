@@ -93,9 +93,10 @@
       "description": "14B-parameter text-to-video diffusion model for high-quality video generation from text prompts.",
       "architecture": "separate-diffusion-model",
       "components": {
-        "diffusion_model": "wan_video_t2v_14b.safetensors",
-        "vae": "wan_video_vae.safetensors",
-        "text_encoder": "umt5_xxl.safetensors"
+        "diffusion_model": "DasiwaWAN22I2V14BV8V1_tastysinHighV81.safetensors",
+        "vae": "wan_2.1_vae.safetensors",
+        "text_encoder": "nsfw_wan_umt5-xxl_fp8_scaled.safetensors",
+        "clip_type": "wan"
       }
     },
     {
@@ -106,9 +107,34 @@
       "description": "14B-parameter image-to-video diffusion model for animating still images into video sequences.",
       "architecture": "separate-diffusion-model",
       "components": {
-        "diffusion_model": "wan_video_i2v_14b.safetensors",
-        "vae": "wan_video_vae.safetensors",
-        "text_encoder": "umt5_xxl.safetensors"
+        "diffusion_model": "DasiwaWAN22I2V14BV8V1_tastysinHighV81.safetensors",
+        "vae": "wan_2.1_vae.safetensors",
+        "text_encoder": "nsfw_wan_umt5-xxl_fp8_scaled.safetensors",
+        "clip_type": "wan",
+        "clip_vision": "clip_vision_h.safetensors"
+      }
+    },
+    {
+      "id": "wan22-rapid-mega-aio-nsfw-v11-t2v",
+      "name": "Wan 2.2 Rapid Mega AIO NSFW v11 (T2V)",
+      "type": "video",
+      "modalities": ["txt2vid"],
+      "description": "Wan 2.2 all-in-one NSFW checkpoint for text-to-video generation.",
+      "architecture": "bundled-checkpoint",
+      "components": {
+        "checkpoint": "wan2.2-rapid-mega-aio-nsfw-v11.safetensors"
+      }
+    },
+    {
+      "id": "wan22-rapid-mega-aio-nsfw-v10-i2v",
+      "name": "Wan 2.2 Rapid Mega AIO NSFW v10 (I2V)",
+      "type": "video",
+      "modalities": ["img2vid"],
+      "description": "Wan 2.2 all-in-one NSFW checkpoint for image-to-video generation.",
+      "architecture": "bundled-checkpoint",
+      "components": {
+        "checkpoint": "wan2.2-i2v-rapid-aio-v10-nsfw.safetensors",
+        "clip_vision": "clip-vision_vit-h.safetensors"
       }
     }
   ]

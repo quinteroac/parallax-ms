@@ -12,6 +12,8 @@ export const outputsRoutes = new Elysia().get(
       set.status = 404;
       return { error: "not found" };
     }
+    // Return BunFile directly so Bun handles range requests (HTTP 206) automatically.
+    // Range support is required for browsers to seek/play MP4 video.
     const contentType = params.filename.endsWith(".mp4") ? "video/mp4" : "image/png";
     return new Response(file, { headers: { "content-type": contentType } });
   },
