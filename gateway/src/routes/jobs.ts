@@ -214,6 +214,16 @@ export function createJobsRoutes(loader: Loader = loadModels) {
           }
         }
 
+        if (raw.modality === "txt2audio") {
+          const ap = raw.params as Record<string, unknown>;
+          if (typeof ap.prompt !== "string" || ap.prompt.length === 0) {
+            set.status = 400;
+            return {
+              error: "`prompt` is required and must be a non-empty string for `txt2audio` jobs",
+            };
+          }
+        }
+
         set.status = 201;
         // For img2vid jobs, fold the top-level inputImage into params as source_image
         // so the worker receives it in the forwarded request body.
