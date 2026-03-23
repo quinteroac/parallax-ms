@@ -66,7 +66,8 @@ class Txt2AudioHandler(ModalityHandler):
             request.scheduler,
             request.seed,
         )
-        waveform = mc.vae.decode(denoised["samples"])
+        # ComfyUI's vae.decode() returns [B, T, C]; move channels back to dim 1 -> [B, C, T]
+        waveform = mc.vae.decode(denoised["samples"]).movedim(-1, 1)
 
         # Trim trailing ACE silence (last 5 s), but never below 1 second total.
         total_frames = waveform.shape[-1]
@@ -76,9 +77,9 @@ class Txt2AudioHandler(ModalityHandler):
         waveform = waveform[..., :keep_frames]
 
         output_path = output_dir / f"{request.id}.wav"
-        wav_data = waveform.cpu().numpy()
+        wav_data = waveform.squeeze(0).cpu().numpy()  # [C, T]
         if wav_data.ndim == 2:
-            wav_data = wav_data.T  # [channel, time] -> [time, channel]
+            wav_data = wav_data.T  # [C, T] -> [T, C]
         scipy.io.wavfile.write(str(output_path), _ACE_STEP_15_SAMPLE_RATE, wav_data)
 
         if not output_path.exists():
