@@ -14,8 +14,10 @@ export const outputsRoutes = new Elysia().get(
     }
     // Return BunFile directly so Bun handles range requests (HTTP 206) automatically.
     // Range support is required for browsers to seek/play MP4 video.
-    const contentType = params.filename.endsWith(".mp4") ? "video/mp4" : "image/png";
+    let contentType = "image/png";
+    if (params.filename.endsWith(".mp4")) contentType = "video/mp4";
+    else if (params.filename.endsWith(".wav")) contentType = "audio/wav";
     return new Response(file, { headers: { "content-type": contentType } });
   },
-  { detail: { summary: "Serve a generated image artifact" } },
+  { detail: { summary: "Serve a generated media artifact" } },
 );
