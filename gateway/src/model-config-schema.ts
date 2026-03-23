@@ -10,6 +10,7 @@ export const ARCHITECTURES = [
   "separate-diffusion-model",
   "separate-unet-dual-clip-image-vae",
   "separate-unet-multi-vae",
+  "ace-step-1.5",
 ] as const;
 
 export type Architecture = (typeof ARCHITECTURES)[number];
