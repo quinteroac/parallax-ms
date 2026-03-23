@@ -251,6 +251,56 @@ describe("US-003 GET /v1/models/:id", () => {
   });
 });
 
+describe("US-001 Audio model discovery", () => {
+  // AC01: models.config.json includes at least one audio model with txt2audio and ace-step-1.5
+  test("AC01: GET /v1/models returns at least one txt2audio model under audio", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, ModelEntry[]>;
+    expect(Array.isArray(body.audio)).toBe(true);
+    const txt2audioModels = body.audio.filter((m) => m.modalities.includes("txt2audio"));
+    expect(txt2audioModels.length).toBeGreaterThan(0);
+  });
+
+  test("AC01: audio model uses ace-step-1.5 architecture", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, ModelEntry[]>;
+    const aceStepModel = body.audio.find((m) => m.architecture === "ace-step-1.5");
+    expect(aceStepModel).toBeDefined();
+    expect(aceStepModel!.type).toBe("audio");
+    expect(aceStepModel!.modalities).toContain("txt2audio");
+  });
+
+  // AC02: GET /v1/models includes the audio model with all required fields
+  test("AC02: audio model entry has id, name, type, modalities, architecture, and components", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, ModelEntry[]>;
+    expect(body.audio.length).toBeGreaterThan(0);
+    const model = body.audio.find((m) => m.modalities.includes("txt2audio"))!;
+    expect(typeof model.id).toBe("string");
+    expect(model.id.length).toBeGreaterThan(0);
+    expect(typeof model.name).toBe("string");
+    expect(model.type).toBe("audio");
+    expect(Array.isArray(model.modalities)).toBe(true);
+    expect(typeof model.architecture).toBe("string");
+    expect(typeof model.components).toBe("object");
+  });
+
+  // AC03: GET /v1/models/:id resolves the audio model by id
+  test("AC03: GET /v1/models/acestep-v15-base returns the audio model", async () => {
+    const res = await app.handle(new Request("http://localhost/v1/models/acestep-v15-base"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ModelEntry;
+    expect(body.id).toBe("acestep-v15-base");
+    expect(body.type).toBe("audio");
+    expect(body.modalities).toContain("txt2audio");
+    expect(body.architecture).toBe("ace-step-1.5");
+    expect(typeof body.components).toBe("object");
+  });
+});
+
 describe("US-008-001 Video models in config", () => {
   // AC01: models.config.json contains at least one txt2vid and one img2vid entry
   test("AC01: GET /v1/models returns at least one txt2vid model under video", async () => {

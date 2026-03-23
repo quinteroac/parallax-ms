@@ -315,7 +315,7 @@ describe("US-005 Playground supports video mode", () => {
     expect(body).toContain("vid_width");
     expect(body).toContain("vid_height");
     expect(body).toContain("duration");
-    expect(body).toContain("params = { prompt, width, height, duration }");
+    expect(body).toContain("params = { prompt, width, height, duration,");
   });
 
   // ---------- AC05: video element renders MP4 result ----------
@@ -351,6 +351,91 @@ describe("US-005 Playground supports video mode", () => {
     expect(body).toContain("modality === 'img2vid'");
     expect(body).toContain("inputImage");
     expect(body).toContain("JSON.stringify({ modelId, modality, inputImage, params })");
+  });
+});
+
+// ---------- audio mode ----------
+
+describe("US-004 Playground supports audio mode (txt2audio)", () => {
+  // ---------- AC01: audio model switches to audio mode ----------
+
+  test("US-004-AC01: page contains a radio input for txt2audio mode", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain('value="txt2audio"');
+    expect(body).toContain('id="mode-txt2audio"');
+  });
+
+  test("US-004-AC01: page contains audio-fields section with lyrics, duration, and bpm inputs", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain('id="audio-fields"');
+    expect(body).toContain('id="lyrics"');
+    expect(body).toContain('id="audio_duration"');
+    expect(body).toContain('id="bpm"');
+  });
+
+  test("US-004-AC01: script shows audio-fields and hides other modality fields when txt2audio is selected", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("audioFields");
+    expect(body).toContain("isAudio");
+    expect(body).toContain("Generate audio");
+  });
+
+  test("US-004-AC01: populateModelSelect filters to txt2audio models", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("modality === 'txt2audio'");
+    expect(body).toContain("m.modalities && m.modalities.includes('txt2audio')");
+  });
+
+  // ---------- AC02: form dispatches txt2audio job ----------
+
+  test("US-004-AC02: script builds params with duration and bpm for txt2audio and submits to POST /v1/jobs", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("modality === 'txt2audio'");
+    expect(body).toContain("audio_duration");
+    expect(body).toContain("bpm");
+    expect(body).toContain("params = { prompt, duration, bpm");
+    expect(body).toContain("JSON.stringify({ modelId, modality, params })");
+  });
+
+  // ---------- AC03 & AC04: audio element revealed on success ----------
+
+  test("US-004-AC03: page contains an audio element with id result-audio", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain('id="result-audio"');
+    expect(body).toContain("<audio");
+    expect(body).toContain("controls");
+  });
+
+  test("US-004-AC03: showResult handles .wav URLs and shows audio element", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("isAudioUrl");
+    expect(body).toContain(".endsWith('.wav')");
+    expect(body).toContain("resultAudio.src = url");
+    expect(body).toContain("resultAudio.classList.add('visible')");
+  });
+
+  test("US-004-AC04: audio element is hidden by default (no visible class on initial render)", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    // The audio element should not have class="visible" initially
+    expect(body).not.toMatch(/<audio[^>]*class="[^"]*visible[^"]*"/);
+  });
+
+  // ---------- AC05: errors are displayed ----------
+
+  test("US-004-AC05: job errors are displayed via showError on failed status", async () => {
+    const res = await app.handle(new Request(`${BASE}/playground`));
+    const body = await res.text();
+    expect(body).toContain("showError");
+    expect(body).toContain("payload.error");
+    expect(body).toContain('id="error"');
   });
 });
 
@@ -432,7 +517,7 @@ describe("US-004 Playground supports upscale mode", () => {
     const body = await res.text();
     expect(body).toContain("modality === 'upscale'");
     expect(body).toContain("upscale_source_image");
-    expect(body).toContain("params = { source_image: base64 }");
+    expect(body).toContain("source_image: base64 }");
     expect(body).toContain("JSON.stringify({ modelId, modality, params })");
   });
 

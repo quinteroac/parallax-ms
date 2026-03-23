@@ -66,12 +66,14 @@
       "id": "acestep-v15-base",
       "name": "ACE-Step v1.5 Base",
       "type": "audio",
-      "modalities": ["text-to-audio"],
+      "modalities": ["txt2audio"],
       "description": "ACE-Step music and sound generation diffusion model.",
-      "architecture": "separate-diffusion-model",
+      "architecture": "ace-step-1.5",
       "components": {
         "diffusion_model": "acestep_v1.5_base.safetensors",
-        "vae": "ace_1.5_vae.safetensors"
+        "vae": "ace_1.5_vae.safetensors",
+        "text_encoder": "qwen_0.6b_ace15.safetensors",
+        "text_encoder2": "qwen_4b_ace15.safetensors"
       }
     },
     {

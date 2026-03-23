@@ -384,3 +384,108 @@ describe("it_000008 US-002 POST /v1/jobs accepts and validates video jobs", () =
     expect(body.error).toMatch(/inputImage/);
   });
 });
+
+const audioModel: ModelEntry = {
+  id: "test-audio-model",
+  name: "Test Audio Model",
+  type: "audio",
+  modalities: ["txt2audio"],
+  description: "Test audio model for unit tests",
+  components: {},
+};
+
+const audioLoader = (): ModelsResponse => ({
+  images: [],
+  video: [],
+  editing: [],
+  audio: [audioModel],
+  upscalers: [],
+});
+
+describe("it_000009 US-002 POST /v1/jobs accepts and validates txt2audio jobs", () => {
+  beforeEach(() => {
+    clearJobs();
+  });
+
+  // AC01: valid txt2audio request returns 201 with jobId
+  test("AC01: valid txt2audio request returns 201 with { jobId }", async () => {
+    const res = await postJob(
+      {
+        modelId: "test-audio-model",
+        modality: "txt2audio",
+        params: { prompt: "a calm piano melody" },
+      },
+      audioLoader,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { jobId: string };
+    expect(typeof body.jobId).toBe("string");
+    expect(body.jobId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  // AC02: model that does not include txt2audio returns 400
+  test("AC02: model that does not support 'txt2audio' returns 400 with descriptive error", async () => {
+    const res = await postJob({
+      modelId: "test-model",
+      modality: "txt2audio",
+      params: { prompt: "a beat" },
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/not supported/i);
+    expect(body.error).toContain("txt2audio");
+  });
+
+  // AC03: missing prompt returns 400
+  test("AC03: missing prompt returns 400", async () => {
+    const res = await postJob(
+      { modelId: "test-audio-model", modality: "txt2audio", params: {} },
+      audioLoader,
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/prompt/);
+  });
+
+  test("AC03: empty string prompt returns 400", async () => {
+    const res = await postJob(
+      { modelId: "test-audio-model", modality: "txt2audio", params: { prompt: "" } },
+      audioLoader,
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/prompt/);
+  });
+
+  // AC04: optional audio params are forwarded in params
+  test("AC04: optional duration, bpm, lyrics are stored in job params when provided", async () => {
+    const res = await postJob(
+      {
+        modelId: "test-audio-model",
+        modality: "txt2audio",
+        params: { prompt: "upbeat jazz", duration: 30, bpm: 120, lyrics: "la la la" },
+      },
+      audioLoader,
+    );
+    expect(res.status).toBe(201);
+    const { jobId } = (await res.json()) as { jobId: string };
+    const job = getJob(jobId);
+    expect(job).toBeDefined();
+    expect(job!.params).toMatchObject({
+      prompt: "upbeat jazz",
+      duration: 30,
+      bpm: 120,
+      lyrics: "la la la",
+    });
+  });
+
+  test("AC04: txt2audio without optional params still returns 201", async () => {
+    const res = await postJob(
+      { modelId: "test-audio-model", modality: "txt2audio", params: { prompt: "ambient sounds" } },
+      audioLoader,
+    );
+    expect(res.status).toBe(201);
+  });
+});

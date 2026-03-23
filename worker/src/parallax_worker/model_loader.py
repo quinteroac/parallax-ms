@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class ModelComponents:
     model: object
     clip: object
-    vae: object
+    vae: object | None = None
     clip_vision: object | None = None
 
 
@@ -59,11 +59,19 @@ def _load_separate_unet_multi_vae(manager: ModelManager, components: dict) -> Mo
     return ModelComponents(model, clip, vae, clip_vision)
 
 
+def _load_ace_step_15(manager: ModelManager, components: dict) -> ModelComponents:
+    model = manager.load_unet(components["diffusion_model"])
+    vae = manager.load_vae(components["vae"])
+    clip = manager.load_clip(components["text_encoder"], components["text_encoder2"], clip_type="ace")
+    return ModelComponents(model, clip, vae)
+
+
 _LOADERS: dict = {
     "bundled-checkpoint": _load_bundled_checkpoint,
     "separate-diffusion-model": _load_separate_diffusion_model,
     "separate-unet-dual-clip-image-vae": _load_separate_unet_dual_clip_image_vae,
     "separate-unet-multi-vae": _load_separate_unet_multi_vae,
+    "ace-step-1.5": _load_ace_step_15,
 }
 
 
