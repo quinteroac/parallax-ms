@@ -61,8 +61,9 @@ def _load_separate_unet_multi_vae(manager: ModelManager, components: dict) -> Mo
 
 def _load_ace_step_15(manager: ModelManager, components: dict) -> ModelComponents:
     model = manager.load_unet(components["diffusion_model"])
-    clip = manager.load_clip(components["text_encoder"], clip_type=_clip_type(components))
-    return ModelComponents(model, clip)
+    vae = manager.load_vae(components["vae"])
+    clip = manager.load_clip(components["text_encoder"], components["text_encoder2"], clip_type="ace")
+    return ModelComponents(model, clip, vae)
 
 
 _LOADERS: dict = {
@@ -70,7 +71,7 @@ _LOADERS: dict = {
     "separate-diffusion-model": _load_separate_diffusion_model,
     "separate-unet-dual-clip-image-vae": _load_separate_unet_dual_clip_image_vae,
     "separate-unet-multi-vae": _load_separate_unet_multi_vae,
-    "ace-step-15": _load_ace_step_15,
+    "ace-step-1.5": _load_ace_step_15,
 }
 
 

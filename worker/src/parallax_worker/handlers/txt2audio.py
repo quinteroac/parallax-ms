@@ -14,7 +14,9 @@ from parallax_worker.models import InferRequest
 
 logger = logging.getLogger(__name__)
 
-_ACE_STEP_15_SAMPLE_RATE = 48000
+_ACE_STEP_15_SAMPLE_RATE = 44100
+_ACE_STEP_15_TRAILING_SILENCE_SECS = 5
+_MIN_DURATION_SECS = 1
 
 
 class Txt2AudioHandler(ModalityHandler):
@@ -49,6 +51,7 @@ class Txt2AudioHandler(ModalityHandler):
             bpm=request.bpm,
             duration=request.duration,
             seed=request.seed,
+            generate_audio_codes=False,
         )
         latent = empty_ace_step_15_latent_audio(seconds=request.duration)
         logger.info("txt2audio sampling  job=%s", request.id)
@@ -63,16 +66,23 @@ class Txt2AudioHandler(ModalityHandler):
             request.scheduler,
             request.seed,
         )
+        waveform = mc.vae.decode(denoised["samples"])
+
+        # Trim trailing ACE silence (last 5 s), but never below 1 second total.
+        total_frames = waveform.shape[-1]
+        trim_frames = int(_ACE_STEP_15_TRAILING_SILENCE_SECS * _ACE_STEP_15_SAMPLE_RATE)
+        min_frames = int(_MIN_DURATION_SECS * _ACE_STEP_15_SAMPLE_RATE)
+        keep_frames = max(total_frames - trim_frames, min_frames)
+        waveform = waveform[..., :keep_frames]
+
         output_path = output_dir / f"{request.id}.wav"
-        samples = denoised["samples"]
-        if hasattr(samples, "cpu"):
-            samples = samples.cpu()
-        audio_np = samples.numpy() if hasattr(samples, "numpy") else samples
-        # Shape: [batch, channels, frames] → take first batch, transpose to [frames, channels]
-        if audio_np.ndim == 3:
-            audio_np = audio_np[0]
-        if audio_np.ndim == 2:
-            audio_np = audio_np.T
-        scipy.io.wavfile.write(str(output_path), _ACE_STEP_15_SAMPLE_RATE, audio_np)
+        wav_data = waveform.cpu().numpy()
+        if wav_data.ndim == 2:
+            wav_data = wav_data.T  # [channel, time] -> [time, channel]
+        scipy.io.wavfile.write(str(output_path), _ACE_STEP_15_SAMPLE_RATE, wav_data)
+
+        if not output_path.exists():
+            raise RuntimeError(f"WAV file was not written to {output_path}")
+
         logger.info("txt2audio done  job=%s output=%s", request.id, output_path)
         return f"{callback_base}/outputs/{request.id}.wav"
