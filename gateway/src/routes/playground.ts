@@ -201,6 +201,16 @@ const html = `<!DOCTYPE html>
       display: flex;
     }
 
+    .audio-fields {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .audio-fields.visible {
+      display: flex;
+    }
+
     button[type="submit"] {
       background: #5b5bd6;
       border: none;
@@ -282,6 +292,17 @@ const html = `<!DOCTYPE html>
     }
 
     #result-video.visible { display: block; }
+
+    #result-audio {
+      display: none;
+      margin-top: 1.5rem;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    #result-audio.visible {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -309,6 +330,8 @@ const html = `<!DOCTYPE html>
         <label for="mode-txt2vid">txt2vid</label>
         <input type="radio" id="mode-img2vid" name="modality" value="img2vid" />
         <label for="mode-img2vid">img2vid</label>
+        <input type="radio" id="mode-txt2audio" name="modality" value="txt2audio" />
+        <label for="mode-txt2audio">txt2audio</label>
       </div>
     </fieldset>
 
@@ -403,6 +426,24 @@ const html = `<!DOCTYPE html>
       </label>
     </div>
 
+    <div class="audio-fields" id="audio-fields">
+      <label>
+        Lyrics <span style="font-weight:400;color:#666">(optional)</span>
+        <input type="text" id="lyrics" name="lyrics" placeholder="Verse 1: ..." />
+      </label>
+
+      <div class="row">
+        <label>
+          Duration (seconds)
+          <input type="number" id="audio_duration" name="audio_duration" value="5" min="1" max="600" step="0.5" />
+        </label>
+        <label>
+          BPM
+          <input type="number" id="bpm" name="bpm" value="120" min="1" max="300" />
+        </label>
+      </div>
+    </div>
+
     <button type="submit" id="submit-btn">Generate</button>
   </form>
 
@@ -415,6 +456,7 @@ const html = `<!DOCTYPE html>
 
   <img id="result" alt="Generated image" />
   <video id="result-video" controls preload="auto"></video>
+  <audio id="result-audio" controls></audio>
 
   <script>
     const form = document.getElementById('job-form');
@@ -424,11 +466,13 @@ const html = `<!DOCTYPE html>
     const errorEl = document.getElementById('error');
     const resultImg = document.getElementById('result');
     const resultVideo = document.getElementById('result-video');
+    const resultAudio = document.getElementById('result-audio');
     const modelSelect = document.getElementById('model-select');
     const img2imgFields = document.getElementById('img2img-fields');
     const upscaleFields = document.getElementById('upscale-fields');
     const vidFields = document.getElementById('vid-fields');
     const img2vidSource = document.getElementById('img2vid-source');
+    const audioFields = document.getElementById('audio-fields');
     const generationFields = document.getElementById('generation-fields');
     const imgDimensionsRow = document.getElementById('img-dimensions-row');
     const promptFields = document.getElementById('prompt-fields');
@@ -447,6 +491,8 @@ const html = `<!DOCTYPE html>
         filtered = allModels.filter((m) => m.modalities && m.modalities.includes('upscale'));
       } else if (modality === 'txt2vid' || modality === 'img2vid') {
         filtered = allModels.filter((m) => m.modalities && m.modalities.includes(modality));
+      } else if (modality === 'txt2audio') {
+        filtered = allModels.filter((m) => m.modalities && m.modalities.includes('txt2audio'));
       } else {
         filtered = allModels;
       }
@@ -517,12 +563,23 @@ const html = `<!DOCTYPE html>
         const isUpscale = modality === 'upscale';
         const isVideo = modality === 'txt2vid' || modality === 'img2vid';
         const isImg2vid = modality === 'img2vid';
+        const isAudio = modality === 'txt2audio';
 
         if (isUpscale) {
           generationFields.classList.add('hidden');
           upscaleFields.classList.add('visible');
           vidFields.classList.remove('visible');
+          audioFields.classList.remove('visible');
           submitBtn.textContent = 'Upscale';
+        } else if (isAudio) {
+          generationFields.classList.remove('hidden');
+          promptFields.style.display = '';
+          promptInput.disabled = false;
+          imgDimensionsRow.style.display = 'none';
+          upscaleFields.classList.remove('visible');
+          vidFields.classList.remove('visible');
+          audioFields.classList.add('visible');
+          submitBtn.textContent = 'Generate audio';
         } else if (isVideo) {
           // Both txt2vid and img2vid show generation fields (prompt, steps/cfg/seed).
           generationFields.classList.remove('hidden');
@@ -532,6 +589,7 @@ const html = `<!DOCTYPE html>
           imgDimensionsRow.style.display = 'none';
           upscaleFields.classList.remove('visible');
           vidFields.classList.add('visible');
+          audioFields.classList.remove('visible');
           submitBtn.textContent = 'Generate video';
         } else {
           generationFields.classList.remove('hidden');
@@ -540,6 +598,7 @@ const html = `<!DOCTYPE html>
           imgDimensionsRow.style.display = '';
           upscaleFields.classList.remove('visible');
           vidFields.classList.remove('visible');
+          audioFields.classList.remove('visible');
           submitBtn.textContent = 'Generate';
         }
 
@@ -578,6 +637,7 @@ const html = `<!DOCTYPE html>
       errorEl.classList.remove('visible');
       resultImg.classList.remove('visible');
       resultVideo.classList.remove('visible');
+      resultAudio.classList.remove('visible');
       submitBtn.disabled = true;
     }
 
@@ -592,7 +652,9 @@ const html = `<!DOCTYPE html>
     }
 
     function showResult(url) {
-      const isVideoUrl = url.toLowerCase().endsWith('.mp4');
+      const lowerUrl = url.toLowerCase();
+      const isVideoUrl = lowerUrl.endsWith('.mp4');
+      const isAudioUrl = lowerUrl.endsWith('.wav') || lowerUrl.endsWith('.mp3');
       if (isVideoUrl) {
         resultVideo.onerror = () => {
           const err = resultVideo.error;
@@ -603,10 +665,18 @@ const html = `<!DOCTYPE html>
         resultVideo.load();
         resultVideo.classList.add('visible');
         resultImg.classList.remove('visible');
+        resultAudio.classList.remove('visible');
+      } else if (isAudioUrl) {
+        resultAudio.src = url;
+        resultAudio.load();
+        resultAudio.classList.add('visible');
+        resultImg.classList.remove('visible');
+        resultVideo.classList.remove('visible');
       } else {
         resultImg.src = url;
         resultImg.classList.add('visible');
         resultVideo.classList.remove('visible');
+        resultAudio.classList.remove('visible');
       }
     }
 
@@ -639,6 +709,7 @@ const html = `<!DOCTYPE html>
       const modelId = modelSelect.value;
       const modality = document.querySelector('input[name="modality"]:checked').value;
       const isVideo = modality === 'txt2vid' || modality === 'img2vid';
+      const isAudio = modality === 'txt2audio';
 
       if (!modelId) {
         showError('Please select a model before generating.');
@@ -651,7 +722,17 @@ const html = `<!DOCTYPE html>
       try {
         let params;
 
-        if (modality === 'upscale') {
+        if (modality === 'txt2audio') {
+          const prompt = document.getElementById('prompt').value.trim();
+          const lyrics = document.getElementById('lyrics').value.trim();
+          const duration = parseFloat(document.getElementById('audio_duration').value);
+          const bpm = parseInt(document.getElementById('bpm').value, 10);
+          const steps = parseInt(document.getElementById('steps').value, 10);
+          const cfg = parseFloat(document.getElementById('cfg').value);
+          const seed = parseInt(document.getElementById('seed').value, 10);
+          params = { prompt, duration, bpm, steps, cfg, seed };
+          if (lyrics) params.lyrics = lyrics;
+        } else if (modality === 'upscale') {
           const fileInput = document.getElementById('upscale_source_image');
           const file = fileInput.files && fileInput.files[0];
           if (!file) {
@@ -735,7 +816,7 @@ const html = `<!DOCTYPE html>
         return;
       }
 
-      showLoading(isVideo ? 'Generating video\u2026' : 'Generating\u2026');
+      showLoading(isVideo ? 'Generating video\u2026' : isAudio ? 'Generating audio\u2026' : 'Generating\u2026');
 
       const es = new EventSource('/v1/jobs/' + jobId + '/events');
       activeEventSource = es;
